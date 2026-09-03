@@ -1,0 +1,14 @@
+{
+  "slide": {"width": 13.333, "height": 7.5},
+  "slide_background": "#FFFFFF",
+  "region": {"x": 0.55, "y": 1.65, "w": 12.25, "h": 3.95},
+  "matrix_color": "#E5B13E",
+  "bundle_dark": "#5A2F00",
+  "bundle_gold": "#E3B247",
+  "vascular_bundle_count": 55,
+  "bundle_size_min": 0.26,
+  "bundle_size_max": 0.34,
+  "min_distance": 0.58,
+  "outer_density_bias": 0.12,
+  "seed": 20260903
+}
