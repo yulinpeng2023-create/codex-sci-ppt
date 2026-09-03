@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local image -> SVG -> geometry cache -> editable PPTX pipeline.
+"""Codex Sci-PPT local image -> SVG -> geometry cache -> editable PPTX pipeline.
 
 This replaces Cell_ppt's remote vectorization call with local OpenCV tracing
 while preserving the important intermediate SVG/cache/render stages.
@@ -33,7 +33,7 @@ def main():
 
     scripts = Path(__file__).resolve().parent
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix=".sci-ppt-", dir=args.output.parent))
+    work = Path(tempfile.mkdtemp(prefix=".codex-sci-ppt-", dir=args.output.parent))
     raw_svg = work / "vector.svg"
     master_svg = work / "master.svg"
 
