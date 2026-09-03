@@ -2,7 +2,7 @@
 """Local image -> text cleanup -> SVG -> cache -> editable PPTX pipeline.
 
 This intentionally mirrors Cell-PPT's high-level stages while replacing the
-remote vectorization/API step with local OpenCV vectorization.
+remote vectorization/API step with deterministic local vectorization.
 """
 from __future__ import annotations
 
@@ -43,10 +43,13 @@ def main():
     parser.add_argument("--input-pptx", type=Path)
     parser.add_argument("--slide-index", type=int, default=0)
     parser.add_argument("--job-name")
-    parser.add_argument("--colors", type=int, default=10)
-    parser.add_argument("--max-paths", type=int, default=600)
-    parser.add_argument("--min-area-ratio", type=float, default=0.00015)
-    parser.add_argument("--epsilon-ratio", type=float, default=0.003)
+    parser.add_argument("--colors", type=int, default=12)
+    parser.add_argument("--max-paths", type=int, default=700)
+    parser.add_argument("--min-area-ratio", type=float, default=0.00010)
+    parser.add_argument("--epsilon-ratio", type=float, default=0.0025)
+    parser.add_argument("--preprocess", choices=("none", "bilateral"), default="bilateral")
+    parser.add_argument("--palette-merge-distance", type=float, default=6.0)
+    parser.add_argument("--sample-limit", type=int, default=250000)
     parser.add_argument("--text-padding", type=int, default=3)
     args = parser.parse_args()
 
@@ -97,6 +100,9 @@ def main():
         "--max-paths", args.max_paths,
         "--min-area-ratio", args.min_area_ratio,
         "--epsilon-ratio", args.epsilon_ratio,
+        "--preprocess", args.preprocess,
+        "--palette-merge-distance", args.palette_merge_distance,
+        "--sample-limit", args.sample_limit,
     )
     vector_summary = json.loads(vector_output.splitlines()[-1]) if vector_output else {}
 
@@ -138,6 +144,10 @@ def main():
         "local_only": True,
         "text_regions_removed": int(text_cleanup.get("regions_removed", 0)),
         "vector_elements": int(vector_summary.get("vector_elements", 0)),
+        "palette_colors": int(vector_summary.get("palette_colors", 0)),
+        "palette_psnr_db": float(vector_summary.get("palette_psnr_db", 0.0)),
+        "palette_mae": float(vector_summary.get("palette_mae", 0.0)),
+        "primitives": vector_summary.get("primitives", {}),
     }, ensure_ascii=False, separators=(",", ":")))
 
 

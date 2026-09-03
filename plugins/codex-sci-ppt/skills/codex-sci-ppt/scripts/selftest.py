@@ -2,6 +2,7 @@
 """End-to-end self-test for Codex Sci-PPT's local, no-API pipeline."""
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -22,6 +23,10 @@ def run(*args: object) -> str:
         stderr=subprocess.PIPE,
     )
     return completed.stdout.strip()
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def assert_pptx(path: Path, min_shapes: int = 1, expected_text: str | None = None) -> int:
@@ -94,7 +99,8 @@ def main() -> int:
         )
         scene_shapes = assert_pptx(scene_pptx, min_shapes=3)
 
-        # 3) Full local image -> local text cleanup -> SVG -> cache -> PPTX.
+        # 3) Synthetic flat-color diagram used for local vectorizer and complete
+        # image-pipeline tests.
         image = np.full((240, 360, 3), 255, dtype=np.uint8)
         cv2.rectangle(image, (30, 50), (150, 190), (230, 200, 120), thickness=-1)
         cv2.circle(image, (250, 120), 55, (90, 160, 235), thickness=-1)
@@ -102,6 +108,41 @@ def main() -> int:
         cv2.putText(image, "TXT", (88, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (25, 25, 25), 2, cv2.LINE_AA)
         image_path = work / "synthetic.png"
         cv2.imwrite(str(image_path), image)
+
+        # 3a) Vectorizer v2 should be deterministic, recover semantic primitives,
+        # remain vector-only, and report a sensible palette reconstruction score.
+        trace_one = work / "trace-one.svg"
+        trace_two = work / "trace-two.svg"
+        trace_args = [
+            "--input-image", image_path,
+            "--colors", "8",
+            "--max-paths", "120",
+            "--palette-merge-distance", "5",
+        ]
+        vector_one = json.loads(run(
+            scripts / "vectorize_local.py", *trace_args,
+            "--output-svg", trace_one,
+        ).splitlines()[-1])
+        vector_two = json.loads(run(
+            scripts / "vectorize_local.py", *trace_args,
+            "--output-svg", trace_two,
+        ).splitlines()[-1])
+        if sha256(trace_one) != sha256(trace_two):
+            raise AssertionError("local vectorization is not deterministic")
+        trace_payload = trace_one.read_text(encoding="utf-8")
+        if "<image" in trace_payload:
+            raise AssertionError("vectorizer emitted a raster image node")
+        primitives = vector_one.get("primitives", {})
+        if int(primitives.get("rect", 0)) < 1:
+            raise AssertionError(f"expected rectangle primitive recovery, got {primitives}")
+        if int(primitives.get("ellipse", 0)) < 1:
+            raise AssertionError(f"expected ellipse primitive recovery, got {primitives}")
+        if float(vector_one.get("palette_psnr_db", 0)) < 20:
+            raise AssertionError(f"unexpectedly low palette PSNR: {vector_one.get('palette_psnr_db')}")
+        if vector_one.get("palette_colors") != vector_two.get("palette_colors"):
+            raise AssertionError("deterministic runs disagreed on palette size")
+
+        # 3b) Full local image -> text cleanup -> SVG -> cache -> PPTX.
         manifest = work / "text-manifest.json"
         manifest.write_text(json.dumps({
             "schema_version": "1.0",
@@ -124,19 +165,39 @@ def main() -> int:
             "--input-image", image_path,
             "--text-manifest", manifest,
             "--output", image_pptx,
-            "--colors", "5",
-            "--max-paths", "100",
+            "--colors", "8",
+            "--max-paths", "120",
         )
         image_shapes = assert_pptx(image_pptx, min_shapes=2, expected_text="TXT")
         result = json.loads(output.splitlines()[-1])
         if int(result.get("text_regions_removed", 0)) != 1:
             raise AssertionError(f"expected one text region removed, got {result.get('text_regions_removed')}")
+        if float(result.get("palette_psnr_db", 0)) < 20:
+            raise AssertionError(f"pipeline did not propagate vectorizer quality metrics: {result}")
         master_svg = Path(result["master_svg"])
         master_payload = master_svg.read_text(encoding="utf-8")
         if "<image" in master_payload:
             raise AssertionError("local image pipeline left a raster <image> node in master SVG")
         if ">TXT<" not in master_payload:
             raise AssertionError("live editable text was not merged back into master SVG")
+
+        # 3c) Transparency must stay transparent instead of becoming white art.
+        rgba = np.zeros((120, 160, 4), dtype=np.uint8)
+        cv2.circle(rgba, (80, 60), 35, (50, 120, 220, 255), thickness=-1)
+        rgba_path = work / "transparent.png"
+        cv2.imwrite(str(rgba_path), rgba)
+        transparent_svg = work / "transparent.svg"
+        transparent_result = json.loads(run(
+            scripts / "vectorize_local.py",
+            "--input-image", rgba_path,
+            "--output-svg", transparent_svg,
+            "--colors", "4",
+        ).splitlines()[-1])
+        transparent_payload = transparent_svg.read_text(encoding="utf-8")
+        if "local_background" in transparent_payload:
+            raise AssertionError("transparent input unexpectedly received an opaque background")
+        if int(transparent_result.get("vector_elements", 0)) < 1:
+            raise AssertionError("transparent input produced no vector artwork")
 
         # 4) Job allocator should produce stable sequential names.
         jobs = work / "jobs"
@@ -159,6 +220,11 @@ def main() -> int:
             "retained_atoms": after["total_atoms"],
             "duplicates_removed": after.get("culled_atom_count", 0),
             "text_regions_removed": result.get("text_regions_removed", 0),
+            "vectorizer_psnr_db": vector_one.get("palette_psnr_db"),
+            "vectorizer_palette_colors": vector_one.get("palette_colors"),
+            "vectorizer_primitives": primitives,
+            "deterministic": True,
+            "transparent_background_preserved": True,
             "raster_nodes": 0,
             "jobs": [first_job, second_job],
         })
