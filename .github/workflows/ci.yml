@@ -26,3 +26,5 @@ jobs:
         run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/selftest.py
       - name: Reference scene regression
         run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/reference_scene_selftest.py
+      - name: Reference analyzer regression
+        run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/test_reference_analyzer.py

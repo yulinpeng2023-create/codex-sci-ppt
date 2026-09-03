@@ -10,12 +10,11 @@ The reconstruction path intentionally stays close to the public MIT-licensed `yr
 
 No Xiaomiao API key, upload, credit, or quota is required.
 
-## Two workflows
+## Three workflows
 
-1. **Reconstruction mode** — for uploaded raster scientific diagrams. The local pipeline creates a vector-only master SVG, parses it once into the same style of schema-v3 geometry cache used by Cell-PPT, keeps literal paint order, removes exact duplicate drawing paths only, and writes editable native PowerPoint custom geometry.
-2. **Scene mode** — for new scientific drawings from a description. Codex generates a structured scene specification and `render_scene.py` creates separate editable shapes, arrows, labels, particles, cells, membranes, vessels, droplets, and layered structures.
-
-Scene mode is usually cleaner for a brand-new publication schematic. Reconstruction mode is the closer replacement for Cell-PPT's image-to-editable-PPT workflow.
+1. **Reconstruction mode** — the closest replacement for Cell-PPT's image-to-editable-PPT path. A local vectorizer replaces the remote Xiaomiao stage while the downstream SVG/cache/OOXML contracts remain aligned.
+2. **Reference-scene mode** — for clean flat scientific schematics where visual similarity matters. A local reference analyzer estimates layout/style from the image, then semantic PowerPoint primitives are used for a cleaner editable redraw.
+3. **Scene mode** — for brand-new figures from a description. Structured scene JSON creates separate editable scientific shapes, arrows, labels, particles, cells, membranes, vessels, droplets, and layered structures.
 
 ## What is aligned with Cell-PPT
 
@@ -25,20 +24,35 @@ The main remaining parity gap is Windows live PowerPoint COM drawing; v0.1.x cur
 
 ## Local vectorizer v3
 
-The no-API vectorizer is intentionally separate from the Cell-PPT downstream core. Version 0.1.3 keeps the v2 LAB/contour pipeline and adds more PowerPoint-friendly geometry recovery:
+The no-API vectorizer is intentionally separate from the Cell-PPT downstream core. Version 0.1.3 keeps the LAB/contour pipeline and adds more PowerPoint-friendly geometry recovery:
 
 - deterministic LAB clustering with large-image sampling;
 - edge-preserving bilateral preprocessing and anti-alias palette merging;
 - transparent-pixel exclusion for PNG artwork with alpha;
 - native SVG rectangle and ellipse recovery;
-- **thin line recovery as real stroked SVG lines**, rather than always turning narrow connectors into filled polygons;
-- **rotated rectangle recovery** using transformed native SVG rectangles;
+- thin line recovery as real stroked SVG lines;
+- rotated rectangle recovery using transformed native SVG rectangles;
 - hole-aware vector paths for compound regions;
 - palette diagnostics plus geometry-level metrics: `geometry_pixel_accuracy`, `geometry_foreground_accuracy`, and `geometry_foreground_iou`.
 
-The geometry metrics compare the simplified editable geometry against the quantized segmentation used by the tracer. They are engineering regression checks, not a claim of publication-level visual fidelity.
-
 Cell-PPT's public geometry cache explicitly rejects `linearGradient` and `radialGradient` nodes, so Codex Sci-PPT does the same to preserve compatibility. Smooth gradients are approximated with ordinary solid-color regions rather than introducing an incompatible native SVG gradient path.
+
+## Reference analyzer v1 — new in 0.1.5
+
+`analyze_reference.py` is an API-free first pass for flat scientific reference figures. It estimates:
+
+- source image size and aspect ratio;
+- background color and dominant foreground palette;
+- large frame candidates;
+- connected-component bounding boxes and relative coordinates;
+- high-confidence primitive guesses (`rect`, `round_rect`, `ellipse`, `line`);
+- rotation estimates from minimum-area rectangles;
+- text-like regions without inventing OCR content;
+- a draft reference-scene JSON and optional debug overlay.
+
+This reduces manual coordinate guessing. The analyzer is deliberately conservative: its labels are layout hints, not semantic truth. Codex or the user should still confirm whether a detected bar is a lamp, connector, sample, panel, etc.
+
+Reference-scene mode also includes editable primitives such as `uv_lamp`, `fan`, `petri_dish`, `material_block`, `dimension_arrow`, and `control_panel`. The UVA chamber example in `examples/uva_chamber_scene.json` is a regression case for this workflow.
 
 ## Install
 
@@ -69,10 +83,28 @@ bash setup.sh
 ```
 
 ```text
-使用 $codex-sci-ppt，把我上传的科研图片重绘成可编辑 PowerPoint 图形。
+使用 $codex-sci-ppt，把我上传的科研图片按原图布局高保真重绘成可编辑 PowerPoint 图形。
 ```
 
 ## Command-line examples
+
+Analyze a reference image locally and create a layout scaffold:
+
+```bash
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/analyze_reference.py \
+  --input-image figure.png \
+  --analysis reference-analysis.json \
+  --scene-draft reference-draft.json \
+  --debug-overlay reference-overlay.png
+```
+
+Render a refined high-fidelity reference scene:
+
+```bash
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/render_reference_scene.py \
+  --scene examples/uva_chamber_scene.json \
+  --output output.pptx
+```
 
 Create a new editable scientific scene:
 
@@ -109,8 +141,6 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
   --palette-merge-distance 6
 ```
 
-Line recovery is enabled by default. For a figure where a long thin bar must remain a filled region rather than a connector/stroke, add `--no-line-recovery`.
-
 If a text manifest includes optional `bbox` fields, the corresponding raster text regions are locally inpainted before vectorization and then restored as live editable text.
 
 ## Diagnostics and self-test
@@ -118,13 +148,17 @@ If a text manifest includes optional `bbox` fields, the corresponding raster tex
 ```bash
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/doctor.py
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/selftest.py
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/reference_scene_selftest.py
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/test_reference_analyzer.py
 ```
 
-The self-test exercises SVG validation, transformed/cubic and stroked geometry caching, duplicate-path removal, editable OOXML reopening, scene rendering, deterministic local raster vectorization, thin-line recovery, rotated rectangles, ellipses, transparent backgrounds, raster-text cleanup, live-text restoration, and job allocation.
+CI runs the core pipeline, reference-scene renderer, and reference-analyzer regressions on Python 3.11 and 3.12.
 
 ## Limitations
 
 The local vectorizer is deterministic and has no API cost, but its fidelity ceiling is still lower than a strong dedicated vectorization model/service. Flat-color scientific diagrams, flowcharts, cartoons, and mechanism figures work best. Complex gradients, textured microscopy panels, photographs, heavy transparency, shadows, and decorative anti-aliased artwork may require cleanup or semantic redraw.
+
+The reference analyzer does not perform semantic understanding or guaranteed OCR by itself. Its job is to reduce layout/style estimation work, not to guess scientific meaning.
 
 ## License
 
