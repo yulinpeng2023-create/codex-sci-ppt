@@ -30,3 +30,5 @@ jobs:
         run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/test_reference_analyzer.py
       - name: Bamboo template regression
         run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/bamboo_template_selftest.py
+      - name: Bamboo board regression
+        run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/bamboo_board_selftest.py

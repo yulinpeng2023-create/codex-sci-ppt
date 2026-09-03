@@ -57,11 +57,33 @@ The template is based on a user-supplied bamboo cross-section PowerPoint visual.
 
 Treat the template as schematic anatomy only. Do not infer quantitative vascular-bundle density, size, dimensions, or scale from it unless the user supplies measured data.
 
+## Reusable bamboo board — 5 × 2 × 0.5 cm
+
+When the user needs the standard bamboo specimen block used in experiments, prefer the reusable board renderer rather than inventing a generic cuboid. The physical dimensions are fixed by default to **5 cm longitudinal × 2 cm transverse × 0.5 cm thickness** (`10:4:1`). The 2 × 0.5 cm transverse end faces the viewer so the vascular-bundle field is visible; the 5 cm direction recedes longitudinally.
+
+Start from:
+
+`templates/bamboo_board_5x2x05.json`
+
+Render it with:
+
+`python scripts/render_bamboo_board.py --config templates/bamboo_board_5x2x05.json --output <output.pptx>`
+
+Important drawing rules for this board:
+
+- keep the 5:2:0.5 physical dimensions and do not visually turn it into a thick block;
+- put vascular bundles only on the transverse 2 × 0.5 cm end face;
+- distribute vascular bundles irregularly, with mixed spacing and slight size variation rather than a grid;
+- use smaller/denser bundles toward the outer side and somewhat larger/sparser bundles inward when a schematic gradient is helpful;
+- keep top and long-side grain sparse and longitudinal, never as dense evenly spaced ruled lines;
+- keep all visible faces geometrically connected so the result reads as one solid board;
+- keep vascular bundles as separate editable PowerPoint objects.
+
 ## Scientific drawing workflow
 
 1. Identify the scientific story: input/material -> treatment/process -> structure/mechanism -> outcome.
 2. For a reference redraw, run the local analyzer before manually estimating geometry.
-3. If the figure contains a bamboo cross section, check the reusable bamboo template before drawing it from scratch.
+3. If the figure contains a bamboo cross section or the standard 5 × 2 × 0.5 cm bamboo specimen, check the reusable bamboo templates before drawing from scratch.
 4. Identify semantic objects such as substrate, coating, reservoir, particles, cells, vessels, arrows, labels, and callouts.
 5. Match the source aspect ratio and source-relative coordinates before polishing style.
 6. Use the smallest set of native editable primitives that communicates the science accurately.
@@ -99,6 +121,10 @@ Bamboo cross-section template:
 
 `python scripts/render_bamboo_template.py --config templates/bamboo_cross_section.json --output <output.pptx>`
 
+Bamboo board 5 × 2 × 0.5 cm:
+
+`python scripts/render_bamboo_board.py --config templates/bamboo_board_5x2x05.json --output <output.pptx>`
+
 Reference analyzer:
 
 `python scripts/analyze_reference.py --input-image <image> --analysis <analysis.json> --scene-draft <draft.json> --debug-overlay <overlay.png>`
@@ -131,6 +157,10 @@ Bamboo-template regression:
 
 `python scripts/bamboo_template_selftest.py`
 
+Bamboo-board regression:
+
+`python scripts/bamboo_board_selftest.py`
+
 ## Completion check
 
-Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene/reference-scene mode, verify expected text boxes are present. For bamboo-template output, verify the vascular bundles remain separate editable shapes. For reference analysis, inspect the debug overlay and treat low-confidence primitive guesses as hints only. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
+Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene/reference-scene mode, verify expected text boxes are present. For bamboo-template output, verify the vascular bundles remain separate editable shapes. For the 5 × 2 × 0.5 cm bamboo board, verify that the front transverse end retains a 4:1 width-to-thickness aspect, the board reads as a closed solid prism, vascular bundles remain on that end face, and their spacing is visibly nonuniform. For reference analysis, inspect the debug overlay and treat low-confidence primitive guesses as hints only. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
