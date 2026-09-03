@@ -1,6 +1,6 @@
 {
   "name": "codex-sci-ppt",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Create and rebuild scientific figures as editable PowerPoint graphics.",
   "author": {
     "name": "yulinpeng2023-create"
@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Codex Sci-PPT",
     "shortDescription": "Editable scientific figures in PowerPoint.",
-    "longDescription": "Codex Sci-PPT creates scientific schematics, locally analyzes clean reference images, provides reusable scientific templates such as an editable bamboo cross-section field, and reconstructs suitable raster diagrams without a third-party credit system.",
+    "longDescription": "Codex Sci-PPT creates scientific schematics, locally analyzes clean reference images, provides reusable editable scientific templates including bamboo cross-sections and 5 x 2 x 0.5 cm bamboo boards, and reconstructs suitable raster diagrams without a third-party credit system.",
     "developerName": "yulinpeng2023-create",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
