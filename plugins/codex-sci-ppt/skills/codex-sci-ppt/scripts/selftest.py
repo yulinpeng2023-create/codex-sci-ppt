@@ -94,28 +94,49 @@ def main() -> int:
         )
         scene_shapes = assert_pptx(scene_pptx, min_shapes=3)
 
-        # 3) Full local image -> SVG -> cache -> PPTX path.
+        # 3) Full local image -> local text cleanup -> SVG -> cache -> PPTX.
         image = np.full((240, 360, 3), 255, dtype=np.uint8)
-        cv2.rectangle(image, (30, 40), (150, 180), (230, 200, 120), thickness=-1)
-        cv2.circle(image, (250, 110), 55, (90, 160, 235), thickness=-1)
-        cv2.line(image, (150, 110), (195, 110), (60, 60, 60), thickness=8)
+        cv2.rectangle(image, (30, 50), (150, 190), (230, 200, 120), thickness=-1)
+        cv2.circle(image, (250, 120), 55, (90, 160, 235), thickness=-1)
+        cv2.line(image, (150, 120), (195, 120), (60, 60, 60), thickness=8)
+        cv2.putText(image, "TXT", (88, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (25, 25, 25), 2, cv2.LINE_AA)
         image_path = work / "synthetic.png"
         cv2.imwrite(str(image_path), image)
+        manifest = work / "text-manifest.json"
+        manifest.write_text(json.dumps({
+            "schema_version": "1.0",
+            "text_elements": [{
+                "id": "live-text-1",
+                "content": "TXT",
+                "x": 0.245,
+                "y": 0.145,
+                "bbox": [0.225, 0.025, 0.19, 0.14],
+                "coordinate_space": "normalized",
+                "font_size": 18,
+                "font_family": "Arial",
+                "fill": "#191919",
+                "paint_order": 999
+            }]
+        }), encoding="utf-8")
         image_pptx = work / "image.pptx"
         output = run(
             scripts / "run_from_image.py",
             "--input-image", image_path,
+            "--text-manifest", manifest,
             "--output", image_pptx,
             "--colors", "5",
             "--max-paths", "100",
         )
-        image_shapes = assert_pptx(image_pptx, min_shapes=1)
-        last_line = output.splitlines()[-1]
-        result = json.loads(last_line)
+        image_shapes = assert_pptx(image_pptx, min_shapes=2, expected_text="TXT")
+        result = json.loads(output.splitlines()[-1])
+        if int(result.get("text_regions_removed", 0)) != 1:
+            raise AssertionError(f"expected one text region removed, got {result.get('text_regions_removed')}")
         master_svg = Path(result["master_svg"])
         master_payload = master_svg.read_text(encoding="utf-8")
         if "<image" in master_payload:
             raise AssertionError("local image pipeline left a raster <image> node in master SVG")
+        if ">TXT<" not in master_payload:
+            raise AssertionError("live editable text was not merged back into master SVG")
 
         # 4) Job allocator should produce stable sequential names.
         jobs = work / "jobs"
@@ -137,6 +158,7 @@ def main() -> int:
             "source_atoms": before["total_atoms"],
             "retained_atoms": after["total_atoms"],
             "duplicates_removed": after.get("culled_atom_count", 0),
+            "text_regions_removed": result.get("text_regions_removed", 0),
             "raster_nodes": 0,
             "jobs": [first_job, second_job],
         })
