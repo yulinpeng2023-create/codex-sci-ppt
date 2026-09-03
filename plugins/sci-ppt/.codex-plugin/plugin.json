@@ -1,0 +1,23 @@
+{
+  "name": "sci-ppt",
+  "version": "0.1.0",
+  "description": "Create and rebuild scientific figures as editable PowerPoint graphics.",
+  "author": {
+    "name": "yulinpeng2023-create"
+  },
+  "homepage": "https://github.com/yulinpeng2023-create/sci-ppt",
+  "repository": "https://github.com/yulinpeng2023-create/sci-ppt",
+  "license": "MIT",
+  "keywords": ["powerpoint", "scientific-figure", "pptx", "vector", "codex-skill"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Sci-PPT",
+    "shortDescription": "Editable scientific figures in PowerPoint.",
+    "longDescription": "Sci-PPT creates scientific schematics from structured scene descriptions and locally traces suitable raster diagrams into editable PowerPoint objects without a third-party credit system.",
+    "developerName": "yulinpeng2023-create",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/yulinpeng2023-create/sci-ppt",
+    "defaultPrompt": "Use Sci-PPT to create or rebuild my scientific figure as editable PowerPoint objects."
+  }
+}
