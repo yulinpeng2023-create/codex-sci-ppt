@@ -1,0 +1,21 @@
+{
+  "slide": {"width": 13.333, "height": 7.5},
+  "background": "#FFFFFF",
+  "objects": [
+    {"type":"text","x":0.6,"y":0.35,"w":12.0,"h":0.5,"text":"Editable scientific workflow example","font_size":24,"bold":true,"align":"center"},
+    {"type":"beaker","x":0.7,"y":1.7,"w":1.45,"h":2.0,"liquid_fraction":0.58,"liquid_fill":"#D9EAF7","label":"Polymer solution"},
+    {"type":"arrow","x1":2.35,"y1":2.7,"x2":3.25,"y2":2.7,"line":"#444444","line_width":2.0},
+    {"type":"particle_cluster","x":3.4,"y":1.9,"w":1.7,"h":1.7,"count":12,"diameter":0.24,"fill":"#F6B26B","line":"#B45F06","label":"Nanoparticles"},
+    {"type":"arrow","x1":5.35,"y1":2.7,"x2":6.25,"y2":2.7,"line":"#444444","line_width":2.0},
+    {"type":"layered_block","x":6.5,"y":1.75,"w":2.5,"h":1.75,"layers":[
+      {"label":"Functional top layer","ratio":0.25,"fill":"#D9D2E9"},
+      {"label":"Active reservoir","ratio":0.35,"fill":"#FFF2CC"},
+      {"label":"Biomass substrate","ratio":1.0,"fill":"#D9EAD3"}
+    ]},
+    {"type":"arrow","x1":9.25,"y1":2.7,"x2":10.1,"y2":2.7,"line":"#444444","line_width":2.0},
+    {"type":"cell","x":10.35,"y":1.65,"w":1.75,"h":1.75,"fill":"#E2F0D9","line":"#70AD47","nucleus_fill":"#D9D2E9","nucleus_line":"#8064A2","particles":5,"label":"Target cell"},
+    {"type":"droplet","x":7.35,"y":4.35,"w":0.55,"h":0.75,"fill":"#9FC5E8","line":"#3D85C6","rotation":180},
+    {"type":"membrane","x":9.3,"y":4.45,"w":2.3,"spacing":0.3,"head":0.12,"tail":0.22,"head_fill":"#6FA8DC","line":"#3D85C6","tail_line":"#666666"},
+    {"type":"text","x":5.4,"y":5.55,"w":3.0,"h":0.5,"text":"Every element remains editable in PowerPoint","font_size":13,"align":"center","bold":true}
+  ]
+}
