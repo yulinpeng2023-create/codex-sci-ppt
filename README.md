@@ -4,7 +4,7 @@
 
 `codex-sci-ppt` is a local-first Codex skill for creating, rebuilding, and exporting scientific figures as editable PowerPoint (`.pptx`) graphics.
 
-The reconstruction path intentionally stays close to the public MIT-licensed `yrui-cmd/cell-ppt` architecture. The main deliberate substitution is the paid/remote vectorization stage:
+The reconstruction pipeline runs locally:
 
 `text manifest -> local text-region cleanup -> local vectorization -> master SVG -> geometry cache -> exact duplicate removal -> editable native PowerPoint`
 
@@ -12,19 +12,13 @@ No Xiaomiao API key, upload, credit, or quota is required.
 
 ## Three workflows
 
-1. **Reconstruction mode** — the closest replacement for Cell-PPT's image-to-editable-PPT path. A local vectorizer replaces the remote Xiaomiao stage while the downstream SVG/cache/OOXML contracts remain aligned.
+1. **Reconstruction mode** — for uploaded raster scientific diagrams. A local vectorizer converts suitable artwork into editable PowerPoint geometry through the SVG/cache/OOXML pipeline.
 2. **Reference-scene mode** — for clean flat scientific schematics where visual similarity matters. A local reference analyzer estimates layout/style from the image, then semantic PowerPoint primitives are used for a cleaner editable redraw.
 3. **Scene mode** — for brand-new figures from a description. Structured scene JSON creates separate editable scientific shapes, arrows, labels, particles, cells, membranes, vessels, droplets, and layered structures.
 
-## What is aligned with Cell-PPT
-
-The downstream reconstruction core follows the same important contracts: vector-only master SVG, live-text merge, schema-v3 geometry cache, SVG transforms and style inheritance, cubic Bézier geometry, literal source order, ordinary 20–50 atom batches, exact duplicate-path filtering, and editable OOXML custom geometry. See `UPSTREAM_PARITY.md` and `THIRD_PARTY_NOTICES.md`.
-
-The main remaining parity gap is Windows live PowerPoint COM drawing; v0.1.x currently routes reconstruction through saved editable OOXML on all platforms.
-
 ## Local vectorizer v3
 
-The no-API vectorizer is intentionally separate from the Cell-PPT downstream core. Version 0.1.3 keeps the LAB/contour pipeline and adds more PowerPoint-friendly geometry recovery:
+The no-API vectorizer uses a deterministic LAB/contour pipeline with PowerPoint-friendly geometry recovery:
 
 - deterministic LAB clustering with large-image sampling;
 - edge-preserving bilateral preprocessing and anti-alias palette merging;
@@ -35,7 +29,7 @@ The no-API vectorizer is intentionally separate from the Cell-PPT downstream cor
 - hole-aware vector paths for compound regions;
 - palette diagnostics plus geometry-level metrics: `geometry_pixel_accuracy`, `geometry_foreground_accuracy`, and `geometry_foreground_iou`.
 
-Cell-PPT's public geometry cache explicitly rejects `linearGradient` and `radialGradient` nodes, so Codex Sci-PPT does the same to preserve compatibility. Smooth gradients are approximated with ordinary solid-color regions rather than introducing an incompatible native SVG gradient path.
+The current geometry-cache contract does not use native SVG `linearGradient` or `radialGradient` nodes. Smooth gradients are approximated with ordinary solid-color regions to keep reconstruction predictable and editable.
 
 ## Reference analyzer v1 — new in 0.1.5
 
@@ -122,7 +116,7 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
   --output output.pptx
 ```
 
-Cell-PPT-like job-folder output is also supported:
+Job-folder output is also supported:
 
 ```bash
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
@@ -164,6 +158,6 @@ The reference analyzer does not perform semantic understanding or guaranteed OCR
 
 MIT License.
 
-## Acknowledgements
+## Third-party notices
 
-Codex Sci-PPT is a local-first implementation built around the public MIT-licensed Cell-PPT architecture. Substantial adapted portions and their license notice are documented in `THIRD_PARTY_NOTICES.md`.
+Required attribution and license notices for any adapted third-party code are kept in `THIRD_PARTY_NOTICES.md`.
