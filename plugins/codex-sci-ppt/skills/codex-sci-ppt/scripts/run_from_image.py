@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local image -> SVG -> geometry cache -> editable PPTX pipeline.
+"""Local image -> text cleanup -> SVG -> cache -> editable PPTX pipeline.
 
 This intentionally mirrors Cell-PPT's high-level stages while replacing the
 remote vectorization/API step with local OpenCV vectorization.
@@ -15,7 +15,14 @@ from pathlib import Path
 
 
 def run(*args):
-    subprocess.run([sys.executable, *map(str, args)], check=True)
+    completed = subprocess.run(
+        [sys.executable, *map(str, args)],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return completed.stdout.strip()
 
 
 def allocate_name(scripts: Path, output_root: Path) -> str:
@@ -40,6 +47,7 @@ def main():
     parser.add_argument("--max-paths", type=int, default=600)
     parser.add_argument("--min-area-ratio", type=float, default=0.00015)
     parser.add_argument("--epsilon-ratio", type=float, default=0.003)
+    parser.add_argument("--text-padding", type=int, default=3)
     args = parser.parse_args()
 
     if bool(args.output_root) == bool(args.output):
@@ -55,6 +63,7 @@ def main():
         job.mkdir(parents=True, exist_ok=True)
         raw_svg = job / f"{base_name}-vector.svg"
         master_svg = job / f"{base_name}.svg"
+        cleaned_image = job / f"{base_name}-cleaned.png"
         expected_pptx = job / f"{base_name}.pptx"
     else:
         output = args.output.expanduser().resolve()
@@ -63,17 +72,33 @@ def main():
         work = Path(tempfile.mkdtemp(prefix=".codex-sci-ppt-", dir=output.parent))
         raw_svg = work / "vector.svg"
         master_svg = work / "master.svg"
+        cleaned_image = work / "cleaned.png"
         expected_pptx = output
 
-    run(
+    source_for_vectorization = args.input_image.resolve()
+    text_cleanup = {"regions_removed": 0}
+    if args.text_manifest:
+        cleanup_output = run(
+            scripts / "remove_text_regions.py",
+            "--input-image", args.input_image.resolve(),
+            "--text-manifest", args.text_manifest.resolve(),
+            "--output-image", cleaned_image,
+            "--padding", max(0, args.text_padding),
+        )
+        if cleanup_output:
+            text_cleanup = json.loads(cleanup_output.splitlines()[-1])
+        source_for_vectorization = cleaned_image
+
+    vector_output = run(
         scripts / "vectorize_local.py",
-        "--input-image", args.input_image.resolve(),
+        "--input-image", source_for_vectorization,
         "--output-svg", raw_svg,
         "--colors", args.colors,
         "--max-paths", args.max_paths,
         "--min-area-ratio", args.min_area_ratio,
         "--epsilon-ratio", args.epsilon_ratio,
     )
+    vector_summary = json.loads(vector_output.splitlines()[-1]) if vector_output else {}
 
     if args.text_manifest:
         run(
@@ -111,6 +136,8 @@ def main():
         "master_svg": str(master_svg),
         "pptx": str(expected_pptx),
         "local_only": True,
+        "text_regions_removed": int(text_cleanup.get("regions_removed", 0)),
+        "vector_elements": int(vector_summary.get("vector_elements", 0)),
     }, ensure_ascii=False, separators=(",", ":")))
 
 
