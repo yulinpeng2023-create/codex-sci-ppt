@@ -11,11 +11,17 @@ Read `references/scene-format.md` before creating a scene.
 
 ## Choose a workflow
 
-### Scene mode — default and preferred
+### Scene mode — default for new figures
 
 Use scene mode for experiments, mechanisms, workflows, material structures, graphical abstracts, coatings, nanoparticles, biological diagrams, and other scientific schematics. Translate the request into a JSON scene and run `scripts/render_scene.py`.
 
 Use semantic scientific primitives when they fit: `particle_cluster`, `layered_block`, `cell`, `membrane`, `beaker`, and `droplet`. Combine them with ordinary editable shapes, arrows, polygons, and text. Prefer several meaningful objects over one monolithic shape.
+
+### Reference-scene mode — high-fidelity semantic redraw
+
+When the user supplies a clean flat scientific schematic and visual similarity matters more than automatic tracing, use `scripts/render_reference_scene.py`. Rebuild the reference semantically with native editable PowerPoint objects instead of raster tracing.
+
+Reference-scene mode adds publication-style primitives that are common in experimental schematics: `uv_lamp`, `fan`, `petri_dish`, `material_block`, `dimension_arrow`, and `control_panel`. Use exact reference proportions, small line widths, matching typography, and restrained flat fills. Theme shadows/styles are stripped so the output remains closer to the source artwork.
 
 ### Reconstruction mode — approximate local rebuild
 
@@ -29,7 +35,7 @@ If known text is present in the source figure, prefer supplying a text manifest 
 
 1. Identify the scientific story: input/material -> treatment/process -> structure/mechanism -> outcome.
 2. Identify semantic objects such as substrate, coating, reservoir, particles, cells, vessels, arrows, labels, and callouts.
-3. Lay out the figure left-to-right or top-to-bottom with a clear visual hierarchy.
+3. For reference redraws, match the source aspect ratio and place objects by source-relative coordinates before beautifying.
 4. Use the smallest set of native editable primitives that communicates the science accurately.
 5. Keep repeated particles/cells as independent editable objects where practical.
 6. Use concise labels and consistent typography.
@@ -53,6 +59,8 @@ Codex Sci-PPT does not require a Xiaomiao API key, paid vectorization credits, o
 
 The reconstruction architecture should stay close to the public MIT-licensed Cell-PPT pipeline where practical: vector master -> live text -> geometry cache -> exact duplicate-path filtering -> native editable PowerPoint objects. The Xiaomiao vectorization stage is replaced by local processing rather than bypassed.
 
+Reference-scene mode is an additive extension. It must not replace or distort the Cell-PPT-compatible reconstruction pipeline.
+
 Do not introduce SVG features rejected by the shared geometry-cache contract merely for appearance. In particular, native SVG gradients are not part of the supported cache subset and should be expanded/approximated with ordinary solid geometry instead.
 
 ## Commands
@@ -60,6 +68,10 @@ Do not introduce SVG features rejected by the shared geometry-cache contract mer
 Scene mode:
 
 `python scripts/render_scene.py --scene <scene.json> --output <output.pptx>`
+
+Reference-scene mode:
+
+`python scripts/render_reference_scene.py --scene <scene.json> --output <output.pptx>`
 
 Reconstruction mode:
 
@@ -73,6 +85,10 @@ End-to-end self-test:
 
 `python scripts/selftest.py`
 
+Reference-scene regression:
+
+`python scripts/reference_scene_selftest.py`
+
 ## Completion check
 
-Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene mode, verify expected text boxes are present. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
+Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene/reference-scene mode, verify expected text boxes are present. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
