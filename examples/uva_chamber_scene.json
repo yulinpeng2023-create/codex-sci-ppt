@@ -1,0 +1,21 @@
+{
+  "slide": {"width": 10.0, "height": 6.84375},
+  "background": "#F7FAFB",
+  "objects": [
+    {"type":"rect","x":0.656,"y":0.719,"w":7.61,"h":5.41,"fill":null,"line":"#14869B","line_width":1.15},
+    {"type":"text","x":3.50,"y":0.92,"w":2.08,"h":0.35,"text":"UVA-340 lamps","font":"Times New Roman","font_size":11.5,"bold":true,"align":"center","color":"#202020"},
+    {"type":"uv_lamp","x":2.31,"y":1.50,"w":2.11,"h":0.26,"fill":"#B326B9","line":"#71146F","highlight":"#DB72DE","line_width":0.7},
+    {"type":"uv_lamp","x":5.12,"y":1.50,"w":2.10,"h":0.26,"fill":"#B326B9","line":"#71146F","highlight":"#DB72DE","line_width":0.7},
+    {"type":"arrow","x1":2.875,"y1":2.10,"x2":2.875,"y2":3.75,"line":"#F2A900","line_width":0.9,"arrowhead":"triangle","arrow_width":"sm","arrow_length":"sm"},
+    {"type":"arrow","x1":3.66,"y1":2.10,"x2":3.66,"y2":3.75,"line":"#F2A900","line_width":0.9,"arrowhead":"triangle","arrow_width":"sm","arrow_length":"sm"},
+    {"type":"arrow","x1":5.63,"y1":2.10,"x2":5.63,"y2":3.75,"line":"#F2A900","line_width":0.9,"arrowhead":"triangle","arrow_width":"sm","arrow_length":"sm"},
+    {"type":"arrow","x1":6.40,"y1":2.10,"x2":6.40,"y2":3.75,"line":"#F2A900","line_width":0.9,"arrowhead":"triangle","arrow_width":"sm","arrow_length":"sm"},
+    {"type":"fan","x":1.06,"y":2.67,"w":1.05,"h":1.05,"fill":"#F8FCFD","line":"#2D93A6","blade_fill":"#78B9C8","hub_fill":"#FFFFFF","line_width":0.8,"blades":3,"label":"Exhaust fan","font":"Times New Roman","font_size":8.0,"text_color":"#666666"},
+    {"type":"text","x":3.90,"y":3.70,"w":1.65,"h":0.34,"text":"Test samples","font":"Times New Roman","font_size":10.5,"align":"center","color":"#4B4B4B"},
+    {"type":"petri_dish","x":2.61,"y":4.67,"w":1.28,"h":0.42,"fill":"#E8F5F6","inner_fill":"#DBEFF2","line":"#20889A","line_width":0.6,"label":"IPBC","font":"Times New Roman","font_size":8.6,"bold":true},
+    {"type":"petri_dish","x":4.28,"y":4.67,"w":1.28,"h":0.42,"fill":"#E8F5F6","inner_fill":"#DBEFF2","line":"#20889A","line_width":0.6,"label":"HDI","font":"Times New Roman","font_size":8.6,"bold":true},
+    {"type":"material_block","x":6.00,"y":4.63,"w":1.40,"h":0.34,"depth":0.23,"skew":0.13,"top_fill":"#D8C55F","front_fill":"#D0A756","side_fill":"#9D6A2F","line":"#7B6937","grain_lines":4,"grain_line":"#A48B3C","label":"Coated bamboo","font":"Times New Roman","font_size":8.3,"bold":true},
+    {"type":"dimension_arrow","x1":7.59,"y1":2.20,"x2":7.59,"y2":4.53,"line":"#888888","line_width":0.55,"label":"30 cm","font_size":8.0,"text_color":"#7A7A7A","start_arrowhead":"triangle","end_arrowhead":"triangle"},
+    {"type":"control_panel","x":8.39,"y":1.08,"w":1.22,"h":4.82,"fill":"#EAF0F2","line":"#14869B","line_width":0.8,"displays":["240 h","RH"],"display_font_size":8.0,"indicators":["#F1AA00","#4C9CB5","#D15A54"]}
+  ]
+}
