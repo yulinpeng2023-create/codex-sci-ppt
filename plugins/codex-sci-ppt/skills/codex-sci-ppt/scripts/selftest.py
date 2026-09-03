@@ -56,7 +56,7 @@ def main() -> int:
         work = Path(td)
 
         # 1) SVG validation/cache/cull/OOXML path, including transforms,
-        # cubic geometry, duplicate paths, and editable text.
+        # cubic geometry, duplicate paths, stroked lines, and editable text.
         svg = work / "core.svg"
         svg.write_text(
             '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120">
@@ -65,6 +65,7 @@ def main() -> int:
     <rect id="rect-dup" x="5" y="5" width="30" height="15" rx="3" fill="#D9EAD3" stroke="#38761D" stroke-width="2"/>
     <path id="curve" d="M 50 15 C 60 0 75 30 90 15 Z" fill="#F6B26B" stroke="#B45F06"/>
   </g>
+  <line id="stroke-line" x1="20" y1="95" x2="95" y2="95" fill="none" stroke="#444444" stroke-width="4" stroke-linecap="round"/>
   <text id="label" x="120" y="70" font-family="Arial" font-size="16" fill="#222222">Editable label</text>
 </svg>\n''',
             encoding="utf-8",
@@ -73,8 +74,8 @@ def main() -> int:
         cache_dir = work / "cache"
         run(scripts / "prepare_geometry_cache.py", "--input", svg, "--output-dir", cache_dir, "--job-id", "selftest")
         before = json.loads((cache_dir / "geometry-cache.json").read_text(encoding="utf-8"))
-        if before["total_atoms"] != 4:
-            raise AssertionError(f"expected 4 source atoms, got {before['total_atoms']}")
+        if before["total_atoms"] != 5:
+            raise AssertionError(f"expected 5 source atoms, got {before['total_atoms']}")
         first_anchor = before["atoms"][0]["subpaths"][0]["points"][0]["a"]
         if first_anchor == [8.0, 5.0] or first_anchor == [5.0, 5.0]:
             raise AssertionError("SVG transform was not applied to cached geometry")
@@ -88,7 +89,7 @@ def main() -> int:
             raise AssertionError("exact duplicate path was not culled")
         core_pptx = work / "core.pptx"
         run(scripts / "run_cell_ppt_ooxml.py", "--geometry-cache", cache_dir / "geometry-cache.json", "--output-pptx", core_pptx)
-        core_shapes = assert_pptx(core_pptx, min_shapes=3, expected_text="Editable label")
+        core_shapes = assert_pptx(core_pptx, min_shapes=4, expected_text="Editable label")
 
         # 2) Scene renderer.
         scene_pptx = work / "scene.pptx"
@@ -99,24 +100,25 @@ def main() -> int:
         )
         scene_shapes = assert_pptx(scene_pptx, min_shapes=3)
 
-        # 3) Synthetic flat-color diagram used for local vectorizer and complete
-        # image-pipeline tests.
-        image = np.full((240, 360, 3), 255, dtype=np.uint8)
-        cv2.rectangle(image, (30, 50), (150, 190), (230, 200, 120), thickness=-1)
-        cv2.circle(image, (250, 120), 55, (90, 160, 235), thickness=-1)
-        cv2.line(image, (150, 120), (195, 120), (60, 60, 60), thickness=8)
-        cv2.putText(image, "TXT", (88, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (25, 25, 25), 2, cv2.LINE_AA)
+        # 3) Synthetic diagram used for v3 vectorizer and complete pipeline tests.
+        image = np.full((280, 420, 3), 255, dtype=np.uint8)
+        cv2.rectangle(image, (30, 55), (155, 205), (230, 200, 120), thickness=-1)
+        cv2.circle(image, (260, 120), 58, (90, 160, 235), thickness=-1)
+        cv2.line(image, (160, 120), (205, 120), (60, 60, 60), thickness=7, lineType=cv2.LINE_8)
+        rotated_box = cv2.boxPoints(((330, 205), (86, 34), 24)).astype(np.int32)
+        cv2.fillConvexPoly(image, rotated_box, (120, 205, 145), lineType=cv2.LINE_8)
+        cv2.putText(image, "TXT", (92, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (25, 25, 25), 2, cv2.LINE_AA)
         image_path = work / "synthetic.png"
         cv2.imwrite(str(image_path), image)
 
-        # 3a) Vectorizer v2 should be deterministic, recover semantic primitives,
-        # remain vector-only, and report a sensible palette reconstruction score.
+        # 3a) Vectorizer v3 should be deterministic, recover editable primitives,
+        # remain vector-only, and report both palette and geometry diagnostics.
         trace_one = work / "trace-one.svg"
         trace_two = work / "trace-two.svg"
         trace_args = [
             "--input-image", image_path,
-            "--colors", "8",
-            "--max-paths", "120",
+            "--colors", "10",
+            "--max-paths", "160",
             "--palette-merge-distance", "5",
         ]
         vector_one = json.loads(run(
@@ -133,12 +135,22 @@ def main() -> int:
         if "<image" in trace_payload:
             raise AssertionError("vectorizer emitted a raster image node")
         primitives = vector_one.get("primitives", {})
-        if int(primitives.get("rect", 0)) < 1:
-            raise AssertionError(f"expected rectangle primitive recovery, got {primitives}")
+        if int(primitives.get("rect", 0)) < 2:
+            raise AssertionError(f"expected background/shape rectangle recovery, got {primitives}")
         if int(primitives.get("ellipse", 0)) < 1:
             raise AssertionError(f"expected ellipse primitive recovery, got {primitives}")
+        if int(primitives.get("line", 0)) < 1:
+            raise AssertionError(f"expected thin-stroke recovery, got {primitives}")
+        if '<line id="local_path_' not in trace_payload:
+            raise AssertionError("recovered line was not emitted as an SVG stroke")
+        if '<rect id="local_path_' not in trace_payload or 'transform="rotate(' not in trace_payload:
+            raise AssertionError("rotated rectangle was not emitted as transformed SVG geometry")
         if float(vector_one.get("palette_psnr_db", 0)) < 20:
             raise AssertionError(f"unexpectedly low palette PSNR: {vector_one.get('palette_psnr_db')}")
+        if float(vector_one.get("geometry_foreground_accuracy", 0)) < 0.70:
+            raise AssertionError(f"unexpectedly low geometry foreground accuracy: {vector_one}")
+        if float(vector_one.get("geometry_foreground_iou", 0)) < 0.75:
+            raise AssertionError(f"unexpectedly low geometry foreground IoU: {vector_one}")
         if vector_one.get("palette_colors") != vector_two.get("palette_colors"):
             raise AssertionError("deterministic runs disagreed on palette size")
 
@@ -150,8 +162,8 @@ def main() -> int:
                 "id": "live-text-1",
                 "content": "TXT",
                 "x": 0.245,
-                "y": 0.145,
-                "bbox": [0.225, 0.025, 0.19, 0.14],
+                "y": 0.135,
+                "bbox": [0.215, 0.020, 0.18, 0.14],
                 "coordinate_space": "normalized",
                 "font_size": 18,
                 "font_family": "Arial",
@@ -165,15 +177,17 @@ def main() -> int:
             "--input-image", image_path,
             "--text-manifest", manifest,
             "--output", image_pptx,
-            "--colors", "8",
-            "--max-paths", "120",
+            "--colors", "10",
+            "--max-paths", "160",
         )
-        image_shapes = assert_pptx(image_pptx, min_shapes=2, expected_text="TXT")
+        image_shapes = assert_pptx(image_pptx, min_shapes=3, expected_text="TXT")
         result = json.loads(output.splitlines()[-1])
         if int(result.get("text_regions_removed", 0)) != 1:
             raise AssertionError(f"expected one text region removed, got {result.get('text_regions_removed')}")
         if float(result.get("palette_psnr_db", 0)) < 20:
-            raise AssertionError(f"pipeline did not propagate vectorizer quality metrics: {result}")
+            raise AssertionError(f"pipeline did not propagate palette metrics: {result}")
+        if float(result.get("geometry_foreground_iou", 0)) <= 0:
+            raise AssertionError(f"pipeline did not propagate geometry metrics: {result}")
         master_svg = Path(result["master_svg"])
         master_payload = master_svg.read_text(encoding="utf-8")
         if "<image" in master_payload:
@@ -221,6 +235,8 @@ def main() -> int:
             "duplicates_removed": after.get("culled_atom_count", 0),
             "text_regions_removed": result.get("text_regions_removed", 0),
             "vectorizer_psnr_db": vector_one.get("palette_psnr_db"),
+            "geometry_foreground_accuracy": vector_one.get("geometry_foreground_accuracy"),
+            "geometry_foreground_iou": vector_one.get("geometry_foreground_iou"),
             "vectorizer_palette_colors": vector_one.get("palette_colors"),
             "vectorizer_primitives": primitives,
             "deterministic": True,
