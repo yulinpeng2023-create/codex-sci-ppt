@@ -5,7 +5,7 @@ import sys
 
 MODULES = ['pptx', 'cv2', 'numpy', 'PIL']
 
-print('Sci-PPT doctor')
+print('Codex Sci-PPT doctor')
 print('OS:', platform.platform())
 print('Python:', sys.version.split()[0])
 failed = []
@@ -21,4 +21,4 @@ for name in MODULES:
 if failed:
     print('Missing/broken dependencies:', ', '.join(failed))
     raise SystemExit(1)
-print('Sci-PPT environment looks ready.')
+print('Codex Sci-PPT environment looks ready.')

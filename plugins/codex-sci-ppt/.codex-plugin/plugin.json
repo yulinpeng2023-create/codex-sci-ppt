@@ -1,0 +1,23 @@
+{
+  "name": "codex-sci-ppt",
+  "version": "0.1.1",
+  "description": "Create and rebuild scientific figures as editable PowerPoint graphics.",
+  "author": {
+    "name": "yulinpeng2023-create"
+  },
+  "homepage": "https://github.com/yulinpeng2023-create/codex-sci-ppt",
+  "repository": "https://github.com/yulinpeng2023-create/codex-sci-ppt",
+  "license": "MIT",
+  "keywords": ["powerpoint", "scientific-figure", "pptx", "vector", "codex-skill"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Sci-PPT",
+    "shortDescription": "Editable scientific figures in PowerPoint.",
+    "longDescription": "Codex Sci-PPT creates scientific schematics from structured scene descriptions and locally reconstructs suitable raster diagrams into editable PowerPoint objects without a third-party credit system.",
+    "developerName": "yulinpeng2023-create",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/yulinpeng2023-create/codex-sci-ppt",
+    "defaultPrompt": "Use Codex Sci-PPT to create or rebuild my scientific figure as editable PowerPoint objects."
+  }
+}

@@ -1,4 +1,4 @@
-# Sci-PPT scene format
+# Codex Sci-PPT scene format
 
 A scene is a JSON object describing one editable PowerPoint slide. Coordinates and dimensions are in inches. Objects are rendered in array order from back to front.
 

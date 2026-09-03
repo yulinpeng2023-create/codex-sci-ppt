@@ -1,11 +1,11 @@
 ---
-name: sci-ppt
+name: codex-sci-ppt
 description: Create scientific schematics, mechanism diagrams, experimental workflows, material structures, graphical abstracts, and simplified reconstructions of uploaded figures as editable PowerPoint objects. Use when the user wants to draw a scientific figure with PowerPoint, convert a suitable diagram into editable PPTX, or create an editable scientific illustration from a text description.
 ---
 
-# Sci-PPT
+# Codex Sci-PPT
 
-Sci-PPT is a local-first scientific drawing skill. Prefer native editable PowerPoint shapes and text over flattened images.
+Codex Sci-PPT is a local-first scientific drawing skill. Prefer native editable PowerPoint shapes and text over flattened images.
 
 Read `references/scene-format.md` before creating a scene.
 
@@ -47,7 +47,9 @@ Trace mode works best for flat-color diagrams, cartoons, flowcharts, icons, and 
 
 ## Local-first policy
 
-Sci-PPT does not require a Xiaomiao API key, paid vectorization credits, or an upload to a third-party vectorization service. Do not request such credentials.
+Codex Sci-PPT does not require a Xiaomiao API key, paid vectorization credits, or an upload to a third-party vectorization service. Do not request such credentials.
+
+The reconstruction architecture should stay close to the public MIT-licensed Cell-PPT pipeline where practical: vector master -> live text -> geometry cache -> exact duplicate-path filtering -> native editable PowerPoint objects. The Xiaomiao vectorization stage is replaced by local processing rather than bypassed.
 
 ## Commands
 

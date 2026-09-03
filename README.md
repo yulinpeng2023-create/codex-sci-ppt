@@ -1,8 +1,8 @@
-# sci-ppt
+# codex-sci-ppt
 
-**Sci-PPT — Scientific figure drawing with editable PowerPoint graphics.**
+**Codex Sci-PPT — Scientific figure drawing with editable PowerPoint graphics.**
 
-`sci-ppt` is a local-first Codex skill for creating, rebuilding, and exporting scientific figures as editable PowerPoint (`.pptx`) graphics.
+`codex-sci-ppt` is a local-first Codex skill for creating, rebuilding, and exporting scientific figures as editable PowerPoint (`.pptx`) graphics.
 
 ## Goals
 
@@ -28,8 +28,8 @@ Two workflows are provided:
 Python 3.11+ is recommended.
 
 ```bash
-git clone https://github.com/yulinpeng2023-create/sci-ppt.git
-cd sci-ppt
+git clone https://github.com/yulinpeng2023-create/codex-sci-ppt.git
+cd codex-sci-ppt
 python -m pip install -r requirements.txt
 ```
 
@@ -50,13 +50,13 @@ bash setup.sh
 After installing the skill, you can ask:
 
 ```text
-使用 $sci-ppt，根据我的实验方法绘制一张科研示意图，输出可编辑 PPTX。
+使用 $codex-sci-ppt，根据我的实验方法绘制一张科研示意图，输出可编辑 PPTX。
 ```
 
 or:
 
 ```text
-使用 $sci-ppt，把我上传的科研图片重绘成可编辑 PowerPoint 图形。
+使用 $codex-sci-ppt，把我上传的科研图片重绘成可编辑 PowerPoint 图形。
 ```
 
 ## Command-line examples
@@ -64,7 +64,7 @@ or:
 Create an editable PPTX from a scene JSON file:
 
 ```bash
-python plugins/sci-ppt/skills/sci-ppt/scripts/render_scene.py \
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/render_scene.py \
   --scene examples/simple_scene.json \
   --output output.pptx
 ```
@@ -72,7 +72,7 @@ python plugins/sci-ppt/skills/sci-ppt/scripts/render_scene.py \
 Trace a raster image locally:
 
 ```bash
-python plugins/sci-ppt/skills/sci-ppt/scripts/run_from_image.py \
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
   --input-image figure.png \
   --output output.pptx
 ```
@@ -80,12 +80,12 @@ python plugins/sci-ppt/skills/sci-ppt/scripts/run_from_image.py \
 Run diagnostics:
 
 ```bash
-python plugins/sci-ppt/skills/sci-ppt/scripts/doctor.py
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/doctor.py
 ```
 
 ## Editing model
 
-Objects created by Sci-PPT are intended to remain editable in PowerPoint. Text is stored as text boxes; rectangles, ellipses, arrows, lines, and polygons are created as separate PowerPoint shapes whenever possible.
+Objects created by Codex Sci-PPT are intended to remain editable in PowerPoint. Text is stored as text boxes; rectangles, ellipses, arrows, lines, and polygons are created as separate PowerPoint shapes whenever possible.
 
 ## Limitations
 
@@ -97,4 +97,4 @@ MIT License.
 
 ## Acknowledgements
 
-Sci-PPT is an independent local-first implementation. The project was inspired by the general idea of reconstructing scientific figures as editable PowerPoint objects, but its local tracing and scene-rendering code are implemented independently.
+Codex Sci-PPT is a local-first implementation. Its image-to-vector-to-editable-PowerPoint pipeline is designed to stay compatible in spirit with the public MIT-licensed architecture of `yrui-cmd/cell-ppt`, while replacing the third-party Xiaomiao API vectorization stage with local processing. See `THIRD_PARTY_NOTICES.md` for attribution.

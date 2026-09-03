@@ -1,6 +1,6 @@
 # Third-party notices
 
-Sci-PPT is an independent local-first project. Its image-vector-PowerPoint pipeline is intentionally kept compatible in spirit with the public MIT-licensed architecture of `yrui-cmd/cell-ppt`.
+Codex Sci-PPT is a local-first project. Its image-vector-PowerPoint pipeline is intentionally kept compatible in spirit with the public MIT-licensed architecture of `yrui-cmd/cell-ppt`.
 
 Some implementation ideas and portions of the SVG geometry / OOXML rendering approach are adapted from:
 
@@ -33,4 +33,4 @@ The upstream MIT permission notice is reproduced below as required when substant
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
-Sci-PPT does not include or bypass the upstream Xiaomiao API service. The paid/credit-gated vectorization stage is replaced by a local OpenCV vectorization stage.
+Codex Sci-PPT does not include or bypass the upstream Xiaomiao API service. The remote credit-gated vectorization stage is replaced by a local vectorization stage.
