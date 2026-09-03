@@ -34,13 +34,17 @@ Enhancements such as scene mode should sit beside the reconstruction pipeline, n
 
 ## Local vectorizer status
 
-The v0.1.2 local vectorizer uses LAB clustering, deterministic pixel sampling for large images, mild edge-preserving preprocessing, anti-alias palette merging, transparent-pixel exclusion, hole-aware paths, and confident rectangle/ellipse recovery. It reports palette reconstruction diagnostics and is covered by deterministic end-to-end tests.
+The v0.1.3 local vectorizer uses LAB clustering, deterministic pixel sampling for large images, mild edge-preserving preprocessing, anti-alias palette merging, transparent-pixel exclusion, hole-aware paths, rectangle/ellipse recovery, conservative thin-stroke recovery, and rotated-rectangle recovery. It reports palette metrics plus geometry-level foreground accuracy and IoU and is covered by deterministic end-to-end tests.
+
+The stroke recovery deliberately emits ordinary SVG `<line>` elements with `stroke-width` and `stroke-linecap`, which are already part of Cell-PPT's allowed SVG atom/presentation contract. Rotated rectangles use the existing SVG transform path that the shared geometry-cache model already supports.
+
+Cell-PPT's public `prepare_geometry_cache.py` explicitly forbids `linearGradient` and `radialGradient`. Codex Sci-PPT therefore does not introduce native SVG gradient nodes merely to improve appearance; gradient-like raster artwork remains expanded into ordinary solid-color regions so the downstream contract stays compatible.
 
 This is still not equivalent to the remote Xiaomiao service. The upstream wrapper receives a finished path-return SVG from the remote service; therefore the service's internal image understanding and tracing quality are outside the public Cell-PPT repository and cannot simply be reproduced by copying its visible code. Codex Sci-PPT keeps the public downstream contracts and replaces only that unavailable remote stage with local processing.
 
 ## Current largest technical differences
 
-1. **Raster-to-vector fidelity.** Clean flat-color diagrams now work substantially better than the first local tracer, but complex gradients, shadows, dense textures, photography, microscopy panels, and decorative anti-aliasing remain harder than a dedicated vectorization model/service.
+1. **Raster-to-vector fidelity.** Clean flat-color diagrams, simple connectors, rotated blocks, circles, and compound regions now reconstruct more cleanly, but complex gradients, shadows, dense textures, photography, microscopy panels, and decorative anti-aliasing remain harder than a dedicated vectorization model/service.
 2. **Windows live drawing.** Cell-PPT can route drawing through live PowerPoint COM on Windows. Codex Sci-PPT v0.1.x currently uses editable saved OOXML on all platforms.
 3. **WPS live backend.** Upstream has an experimental WPS COM route; this has not yet been ported.
 

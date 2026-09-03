@@ -17,11 +17,13 @@ Use scene mode for experiments, mechanisms, workflows, material structures, grap
 
 Use semantic scientific primitives when they fit: `particle_cluster`, `layered_block`, `cell`, `membrane`, `beaker`, and `droplet`. Combine them with ordinary editable shapes, arrows, polygons, and text. Prefer several meaningful objects over one monolithic shape.
 
-### Trace mode — approximate reconstruction
+### Reconstruction mode — approximate local rebuild
 
-Use trace mode when the user explicitly wants an uploaded raster diagram rebuilt and semantic redraw is not practical. Run `scripts/run_from_image.py`. It uses local image processing and creates separate editable polygon objects for retained regions.
+Use reconstruction mode when the user explicitly wants an uploaded raster diagram rebuilt and semantic redraw is not practical. Run `scripts/run_from_image.py`. The local vectorizer can recover ordinary paths plus editable rectangles, rotated rectangles, ellipses, and conservative thin stroked lines before the Cell-PPT-compatible SVG/cache/OOXML stages.
 
-Trace mode works best for flat-color diagrams, cartoons, flowcharts, icons, and simple scientific schematics. For photographs, microscopy images, dense textures, complex gradients, or transparency-heavy figures, state that blind tracing is approximate and prefer semantic scene reconstruction when possible.
+Reconstruction works best for flat-color diagrams, cartoons, flowcharts, icons, and simple scientific schematics. For photographs, microscopy images, dense textures, complex gradients, shadows, or transparency-heavy artwork, state that local reconstruction is approximate and prefer semantic scene reconstruction when possible.
+
+If known text is present in the source figure, prefer supplying a text manifest with bounding boxes so raster text can be removed before tracing and restored as native editable text. Thin-line recovery is enabled by default; use `--no-line-recovery` only when a long narrow filled bar is being misclassified as a connector/stroke.
 
 ## Scientific drawing workflow
 
@@ -51,13 +53,15 @@ Codex Sci-PPT does not require a Xiaomiao API key, paid vectorization credits, o
 
 The reconstruction architecture should stay close to the public MIT-licensed Cell-PPT pipeline where practical: vector master -> live text -> geometry cache -> exact duplicate-path filtering -> native editable PowerPoint objects. The Xiaomiao vectorization stage is replaced by local processing rather than bypassed.
 
+Do not introduce SVG features rejected by the shared geometry-cache contract merely for appearance. In particular, native SVG gradients are not part of the supported cache subset and should be expanded/approximated with ordinary solid geometry instead.
+
 ## Commands
 
 Scene mode:
 
 `python scripts/render_scene.py --scene <scene.json> --output <output.pptx>`
 
-Trace mode:
+Reconstruction mode:
 
 `python scripts/run_from_image.py --input-image <image> --output <output.pptx>`
 
@@ -65,6 +69,10 @@ Diagnostics:
 
 `python scripts/doctor.py`
 
+End-to-end self-test:
+
+`python scripts/selftest.py`
+
 ## Completion check
 
-Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene mode, verify expected text boxes are present. For trace mode, report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
+Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene mode, verify expected text boxes are present. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.

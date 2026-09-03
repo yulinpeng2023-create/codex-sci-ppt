@@ -23,19 +23,22 @@ The downstream reconstruction core follows the same important contracts: vector-
 
 The main remaining parity gap is Windows live PowerPoint COM drawing; v0.1.x currently routes reconstruction through saved editable OOXML on all platforms.
 
-## Local vectorizer v2
+## Local vectorizer v3
 
-The no-API vectorizer is still intentionally separate from the Cell-PPT downstream core. Version 0.1.2 improves the local raster-to-SVG stage with:
+The no-API vectorizer is intentionally separate from the Cell-PPT downstream core. Version 0.1.3 keeps the v2 LAB/contour pipeline and adds more PowerPoint-friendly geometry recovery:
 
-- LAB color clustering with deterministic sampling for large images;
-- mild edge-preserving bilateral preprocessing for diagram-style artwork;
-- merging of near-duplicate palette clusters caused by anti-aliasing;
-- proper transparent-pixel exclusion for PNG artwork with alpha;
-- native SVG rectangle and ellipse recovery where a component is confidently recognized;
+- deterministic LAB clustering with large-image sampling;
+- edge-preserving bilateral preprocessing and anti-alias palette merging;
+- transparent-pixel exclusion for PNG artwork with alpha;
+- native SVG rectangle and ellipse recovery;
+- **thin line recovery as real stroked SVG lines**, rather than always turning narrow connectors into filled polygons;
+- **rotated rectangle recovery** using transformed native SVG rectangles;
 - hole-aware vector paths for compound regions;
-- deterministic output and quality diagnostics (`palette_psnr_db`, `palette_mae`, palette size, and primitive counts).
+- palette diagnostics plus geometry-level metrics: `geometry_pixel_accuracy`, `geometry_foreground_accuracy`, and `geometry_foreground_iou`.
 
-These diagnostics are intended for engineering checks, not as a claim of publication-level visual fidelity. The reported PSNR describes palette reconstruction before final PowerPoint rendering.
+The geometry metrics compare the simplified editable geometry against the quantized segmentation used by the tracer. They are engineering regression checks, not a claim of publication-level visual fidelity.
+
+Cell-PPT's public geometry cache explicitly rejects `linearGradient` and `radialGradient` nodes, so Codex Sci-PPT does the same to preserve compatibility. Smooth gradients are approximated with ordinary solid-color regions rather than introducing an incompatible native SVG gradient path.
 
 ## Install
 
@@ -106,6 +109,8 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
   --palette-merge-distance 6
 ```
 
+Line recovery is enabled by default. For a figure where a long thin bar must remain a filled region rather than a connector/stroke, add `--no-line-recovery`.
+
 If a text manifest includes optional `bbox` fields, the corresponding raster text regions are locally inpainted before vectorization and then restored as live editable text.
 
 ## Diagnostics and self-test
@@ -115,7 +120,7 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/doctor.py
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/selftest.py
 ```
 
-The self-test exercises SVG validation, transformed/cubic geometry caching, duplicate-path removal, editable OOXML reopening, scene rendering, deterministic local raster vectorization, rectangle/ellipse recovery, transparent backgrounds, raster-text cleanup, live-text restoration, and job allocation.
+The self-test exercises SVG validation, transformed/cubic and stroked geometry caching, duplicate-path removal, editable OOXML reopening, scene rendering, deterministic local raster vectorization, thin-line recovery, rotated rectangles, ellipses, transparent backgrounds, raster-text cleanup, live-text restoration, and job allocation.
 
 ## Limitations
 

@@ -4,15 +4,11 @@
 The output deliberately stays inside the downstream Cell-PPT-compatible SVG
 subset. No remote API, key, upload, credit, or quota system is used.
 
-This v2 tracer is still a deterministic local reconstruction backend, but it
-improves the first-generation color-quantization tracer with:
-- edge-preserving preprocessing for diagram-like artwork;
-- sampled LAB k-means for large inputs;
-- merging of near-duplicate palette clusters caused by anti-aliasing;
-- transparent-pixel exclusion rather than treating transparency as white art;
-- primitive recovery for rectangles and ellipses;
-- hole-aware paths and deterministic source ordering;
-- reconstruction diagnostics such as palette PSNR and primitive counts.
+Vectorizer v3 keeps the v2 palette/contour pipeline and adds conservative
+semantic recovery for thin strokes and rotated rectangles plus geometry-level
+quality diagnostics. Native SVG gradients are intentionally not emitted because
+the Cell-PPT-compatible geometry cache forbids gradient nodes; smooth gradients
+remain approximated by ordinary solid-color regions.
 """
 from __future__ import annotations
 
@@ -48,18 +44,22 @@ def contour_path_with_holes(
     hierarchy: np.ndarray,
     index: int,
     epsilon_ratio: float,
-) -> str | None:
-    outer = points_to_subpath(contour_points(contours[index], epsilon_ratio))
+) -> tuple[str | None, np.ndarray | None, list[np.ndarray]]:
+    outer_points = contour_points(contours[index], epsilon_ratio)
+    outer = points_to_subpath(outer_points)
     if not outer:
-        return None
+        return None, None, []
     parts = [outer]
+    holes: list[np.ndarray] = []
     child = int(hierarchy[index][2])
     while child >= 0:
-        hole = points_to_subpath(contour_points(contours[child], epsilon_ratio))
+        hole_points = contour_points(contours[child], epsilon_ratio)
+        hole = points_to_subpath(hole_points)
         if hole:
             parts.append(hole)
+            holes.append(hole_points)
         child = int(hierarchy[child][0])
-    return " ".join(parts)
+    return " ".join(parts), outer_points, holes
 
 
 def active_border_cluster(labels: np.ndarray) -> int:
@@ -79,8 +79,6 @@ def preprocess(source: np.ndarray, mode: str) -> np.ndarray:
     if mode == "none":
         return source
     if mode == "bilateral":
-        # Mild edge-preserving denoising reduces anti-alias palette fragmentation
-        # without erasing the hard boundaries typical of scientific diagrams.
         return cv2.bilateralFilter(source, d=5, sigmaColor=28, sigmaSpace=28)
     raise ValueError(f"unsupported preprocess mode: {mode}")
 
@@ -93,11 +91,14 @@ def sample_rows(pixels: np.ndarray, maximum: int, seed: int = 0) -> np.ndarray:
     return pixels[indices]
 
 
-def assign_nearest_centers(pixels: np.ndarray, centers: np.ndarray, chunk_size: int = 150_000) -> np.ndarray:
+def assign_nearest_centers(
+    pixels: np.ndarray,
+    centers: np.ndarray,
+    chunk_size: int = 150_000,
+) -> np.ndarray:
     result = np.empty(len(pixels), dtype=np.int32)
     for start in range(0, len(pixels), chunk_size):
         chunk = pixels[start:start + chunk_size].astype(np.float32)
-        # Squared Euclidean distance in LAB. The array stays bounded by chunking.
         distances = ((chunk[:, None, :] - centers[None, :, :]) ** 2).sum(axis=2)
         result[start:start + len(chunk)] = np.argmin(distances, axis=1)
     return result
@@ -181,7 +182,11 @@ def merge_close_palette(
     return merged, palette
 
 
-def quantization_metrics(source_bgr: np.ndarray, labels: np.ndarray, palette_bgr: np.ndarray) -> dict:
+def quantization_metrics(
+    source_bgr: np.ndarray,
+    labels: np.ndarray,
+    palette_bgr: np.ndarray,
+) -> dict:
     active = labels >= 0
     if not active.any():
         return {"palette_psnr_db": 0.0, "palette_mae": 0.0}
@@ -206,24 +211,98 @@ def child_count(hierarchy: np.ndarray, index: int) -> int:
     return count
 
 
-def fit_axis_rect(contour: np.ndarray, hierarchy_row: np.ndarray, area: float, epsilon_ratio: float):
+def fit_line_stroke(
+    contour: np.ndarray,
+    hierarchy_row: np.ndarray,
+    area: float,
+    canvas_shape: tuple[int, int],
+    aspect_threshold: float = 5.0,
+    max_width_ratio: float = 0.035,
+):
+    """Recover a long thin filled component as an editable SVG stroke."""
+    if int(hierarchy_row[2]) >= 0 or len(contour) < 4:
+        return None
+    (_, _), (side_one, side_two), _ = cv2.minAreaRect(contour)
+    long_side = max(float(side_one), float(side_two))
+    short_side = min(float(side_one), float(side_two))
+    if long_side <= 2 or short_side <= 0:
+        return None
+    if long_side / short_side < aspect_threshold:
+        return None
+    height, width = canvas_shape
+    max_width = max(6.0, min(height, width) * max_width_ratio)
+    if short_side > max_width:
+        return None
+    extent = area / max(long_side * short_side, 1e-6)
+    if extent < 0.58:
+        return None
+
+    vx, vy, x0, y0 = [float(value) for value in cv2.fitLine(
+        contour, cv2.DIST_L2, 0, 0.01, 0.01
+    ).reshape(-1)]
+    norm = math.hypot(vx, vy)
+    if norm <= 1e-9:
+        return None
+    vx /= norm
+    vy /= norm
+    points = contour.reshape(-1, 2).astype(np.float64)
+    projection = (points[:, 0] - x0) * vx + (points[:, 1] - y0) * vy
+    start = float(projection.min())
+    end = float(projection.max())
+    if end - start < long_side * 0.70:
+        return None
+    stroke_width = max(1.0, min(short_side * 1.10, area / max(end - start, 1.0) * 1.15))
+    return {
+        "kind": "line",
+        "x1": x0 + vx * start,
+        "y1": y0 + vy * start,
+        "x2": x0 + vx * end,
+        "y2": y0 + vy * end,
+        "stroke_width": float(stroke_width),
+        "linecap": "round",
+    }
+
+
+def fit_rectangle(
+    contour: np.ndarray,
+    hierarchy_row: np.ndarray,
+    area: float,
+    epsilon_ratio: float,
+):
     if int(hierarchy_row[2]) >= 0:
         return None
-    x, y, width, height = cv2.boundingRect(contour)
-    if width <= 1 or height <= 1:
-        return None
-    extent = area / float(width * height)
-    if extent < 0.94:
-        return None
     approx = contour_points(contour, epsilon_ratio)
-    if len(approx) > 6:
+    if len(approx) > 8:
+        return None
+
+    x, y, width, height = cv2.boundingRect(contour)
+    if width > 1 and height > 1:
+        extent = area / float(width * height)
+        if extent >= 0.94:
+            return {
+                "kind": "rect",
+                "cx": x + width / 2.0,
+                "cy": y + height / 2.0,
+                "width": float(width),
+                "height": float(height),
+                "rotation": 0.0,
+            }
+
+    (cx, cy), (rot_width, rot_height), angle = cv2.minAreaRect(contour)
+    rot_width = float(rot_width)
+    rot_height = float(rot_height)
+    if rot_width <= 1 or rot_height <= 1:
+        return None
+    rotated_extent = area / max(rot_width * rot_height, 1e-6)
+    if rotated_extent < 0.90:
         return None
     return {
         "kind": "rect",
-        "x": float(x),
-        "y": float(y),
-        "width": float(width),
-        "height": float(height),
+        "cx": float(cx),
+        "cy": float(cy),
+        "width": rot_width,
+        "height": rot_height,
+        "rotation": float(angle),
     }
 
 
@@ -262,9 +341,18 @@ def component_item(
     area: float,
     fill: str,
     epsilon_ratio: float,
+    canvas_shape: tuple[int, int],
+    recover_lines: bool,
 ) -> dict | None:
     contour = contours[index]
-    rectangle = fit_axis_rect(contour, hierarchy[index], area, epsilon_ratio)
+
+    if recover_lines:
+        line = fit_line_stroke(contour, hierarchy[index], area, canvas_shape)
+        if line is not None:
+            line.update({"area": float(area), "stroke": fill})
+            return line
+
+    rectangle = fit_rectangle(contour, hierarchy[index], area, epsilon_ratio)
     if rectangle is not None:
         rectangle.update({"area": float(area), "fill": fill})
         return rectangle
@@ -274,8 +362,10 @@ def component_item(
         ellipse.update({"area": float(area), "fill": fill})
         return ellipse
 
-    path_data = contour_path_with_holes(contours, hierarchy, index, epsilon_ratio)
-    if not path_data:
+    path_data, outer, holes = contour_path_with_holes(
+        contours, hierarchy, index, epsilon_ratio
+    )
+    if not path_data or outer is None:
         return None
     return {
         "kind": "path",
@@ -283,6 +373,93 @@ def component_item(
         "fill": fill,
         "d": path_data,
         "holes": child_count(hierarchy, index),
+        "_outer": outer,
+        "_hole_points": holes,
+    }
+
+
+def draw_item_mask(mask: np.ndarray, item: dict) -> None:
+    kind = item["kind"]
+    if kind == "line":
+        cv2.line(
+            mask,
+            (round(item["x1"]), round(item["y1"])),
+            (round(item["x2"]), round(item["y2"])),
+            255,
+            thickness=max(1, round(item["stroke_width"])),
+            lineType=cv2.LINE_8,
+        )
+        return
+    if kind == "rect":
+        rect = (
+            (float(item["cx"]), float(item["cy"])),
+            (float(item["width"]), float(item["height"])),
+            float(item.get("rotation", 0.0)),
+        )
+        box = np.rint(cv2.boxPoints(rect)).astype(np.int32)
+        cv2.fillPoly(mask, [box], 255)
+        return
+    if kind == "ellipse":
+        cv2.ellipse(
+            mask,
+            (round(item["cx"]), round(item["cy"])),
+            (max(1, round(item["rx"])), max(1, round(item["ry"]))),
+            float(item.get("rotation", 0.0)),
+            0,
+            360,
+            255,
+            thickness=-1,
+            lineType=cv2.LINE_8,
+        )
+        return
+    outer = np.asarray(item.get("_outer"), dtype=np.int32)
+    if outer.size:
+        cv2.fillPoly(mask, [outer], 255)
+    for hole in item.get("_hole_points", []):
+        hole_array = np.asarray(hole, dtype=np.int32)
+        if hole_array.size:
+            cv2.fillPoly(mask, [hole_array], 0)
+
+
+def geometry_metrics(
+    labels: np.ndarray,
+    found: list[dict],
+    background_index: int,
+    include_background: bool,
+    had_alpha: bool,
+) -> dict:
+    reconstructed = np.full(labels.shape, -1, dtype=np.int32)
+    if include_background and not had_alpha:
+        reconstructed[:, :] = int(background_index)
+
+    for item in found:
+        mask = np.zeros(labels.shape, dtype=np.uint8)
+        draw_item_mask(mask, item)
+        reconstructed[mask > 0] = int(item["color_index"])
+
+    active = labels >= 0
+    if not active.any():
+        return {
+            "geometry_pixel_accuracy": 0.0,
+            "geometry_foreground_accuracy": 0.0,
+            "geometry_foreground_iou": 0.0,
+        }
+    pixel_accuracy = float(np.mean(reconstructed[active] == labels[active]))
+    actual_foreground = active & (labels != background_index)
+    if actual_foreground.any():
+        foreground_accuracy = float(np.mean(
+            reconstructed[actual_foreground] == labels[actual_foreground]
+        ))
+    else:
+        foreground_accuracy = 1.0
+    predicted_foreground = (reconstructed >= 0) & (reconstructed != background_index)
+    union = actual_foreground | predicted_foreground
+    intersection = actual_foreground & predicted_foreground
+    iou = float(intersection.sum() / union.sum()) if union.any() else 1.0
+    return {
+        "geometry_pixel_accuracy": round(pixel_accuracy, 4),
+        "geometry_foreground_accuracy": round(foreground_accuracy, 4),
+        "geometry_foreground_iou": round(iou, 4),
     }
 
 
@@ -297,6 +474,7 @@ def vectorize(
     preprocess_mode: str = "bilateral",
     palette_merge_distance: float = 6.0,
     sample_limit: int = 250_000,
+    recover_lines: bool = True,
 ):
     raw = cv2.imread(str(input_image), cv2.IMREAD_UNCHANGED)
     if raw is None:
@@ -356,17 +534,22 @@ def vectorize(
             area = abs(cv2.contourArea(contour))
             if area < minimum_area:
                 continue
-            # A dominant border cluster is emitted once as a clean canvas rect.
             if color_index == background_index and area > height * width * 0.70:
                 continue
-            item = component_item(contours, hierarchy, index, area, fill, epsilon_ratio)
+            item = component_item(
+                contours,
+                hierarchy,
+                index,
+                area,
+                fill,
+                epsilon_ratio,
+                (height, width),
+                recover_lines,
+            )
             if item is not None:
                 item["color_index"] = int(color_index)
                 found.append(item)
 
-    # Raster segmentation is disjoint. Painting larger components first gives a
-    # stable background-to-foreground approximation and minimizes approximation
-    # seams when fitted primitives slightly overlap neighboring regions.
     found.sort(key=lambda item: (item["area"], -item["color_index"]), reverse=True)
     found = found[:max_paths]
 
@@ -375,7 +558,7 @@ def vectorize(
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="{width}" height="{height}">'
     ]
     created = 0
-    primitive_counts = {"rect": 0, "ellipse": 0, "path": 0}
+    primitive_counts = {"rect": 0, "ellipse": 0, "line": 0, "path": 0}
 
     if include_background and not had_alpha:
         lines.append(
@@ -387,11 +570,26 @@ def vectorize(
 
     for index, item in enumerate(found):
         element_id = f"local_path_{index:05d}"
-        if item["kind"] == "rect":
+        if item["kind"] == "line":
             lines.append(
-                f'<rect id="{element_id}" x="{item["x"]:.4f}" y="{item["y"]:.4f}" '
+                f'<line id="{element_id}" x1="{item["x1"]:.4f}" y1="{item["y1"]:.4f}" '
+                f'x2="{item["x2"]:.4f}" y2="{item["y2"]:.4f}" fill="none" '
+                f'stroke="{item["stroke"]}" stroke-width="{item["stroke_width"]:.4f}" '
+                f'stroke-linecap="{item["linecap"]}"/>'
+            )
+        elif item["kind"] == "rect":
+            x = item["cx"] - item["width"] / 2.0
+            y = item["cy"] - item["height"] / 2.0
+            transform = ""
+            if abs(item.get("rotation", 0.0)) > 0.5:
+                transform = (
+                    f' transform="rotate({item["rotation"]:.4f} '
+                    f'{item["cx"]:.4f} {item["cy"]:.4f})"'
+                )
+            lines.append(
+                f'<rect id="{element_id}" x="{x:.4f}" y="{y:.4f}" '
                 f'width="{item["width"]:.4f}" height="{item["height"]:.4f}" '
-                f'fill="{item["fill"]}" stroke="none"/>'
+                f'fill="{item["fill"]}" stroke="none"{transform}/>'
             )
         elif item["kind"] == "ellipse":
             transform = ""
@@ -419,7 +617,10 @@ def vectorize(
     if created == 0:
         raise RuntimeError("Local vectorizer produced no vector elements")
 
-    metrics = quantization_metrics(source, labels, palette_bgr)
+    palette_metrics = quantization_metrics(source, labels, palette_bgr)
+    shape_metrics = geometry_metrics(
+        labels, found, background_index, include_background, had_alpha
+    )
     return {
         "ok": True,
         "paths": len(found),
@@ -431,14 +632,18 @@ def vectorize(
         "background_cluster": int(background_index),
         "preprocess": preprocess_mode,
         "palette_merge_distance": float(palette_merge_distance),
+        "line_recovery": bool(recover_lines),
         "primitives": primitive_counts,
-        **metrics,
+        **palette_metrics,
+        **shape_metrics,
         "output_svg": str(output_svg),
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Local raster-to-SVG vectorizer for Codex Sci-PPT.")
+    parser = argparse.ArgumentParser(
+        description="Local raster-to-SVG vectorizer for Codex Sci-PPT."
+    )
     parser.add_argument("--input-image", required=True, type=Path)
     parser.add_argument("--output-svg", required=True, type=Path)
     parser.add_argument("--colors", type=int, default=12)
@@ -448,15 +653,21 @@ def main():
     parser.add_argument("--preprocess", choices=("none", "bilateral"), default="bilateral")
     parser.add_argument("--palette-merge-distance", type=float, default=6.0)
     parser.add_argument("--sample-limit", type=int, default=250000)
+    parser.add_argument("--no-line-recovery", action="store_true")
     parser.add_argument("--no-background", action="store_true")
     args = parser.parse_args()
     print(json.dumps(vectorize(
-        args.input_image.resolve(), args.output_svg.resolve(), args.colors,
-        args.max_paths, args.min_area_ratio, args.epsilon_ratio,
+        args.input_image.resolve(),
+        args.output_svg.resolve(),
+        args.colors,
+        args.max_paths,
+        args.min_area_ratio,
+        args.epsilon_ratio,
         include_background=not args.no_background,
         preprocess_mode=args.preprocess,
         palette_merge_distance=args.palette_merge_distance,
         sample_limit=args.sample_limit,
+        recover_lines=not args.no_line_recovery,
     ), ensure_ascii=False, separators=(",", ":")))
 
 
