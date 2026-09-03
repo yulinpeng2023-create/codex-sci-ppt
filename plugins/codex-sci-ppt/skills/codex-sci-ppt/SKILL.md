@@ -19,9 +19,21 @@ Use semantic scientific primitives when they fit: `particle_cluster`, `layered_b
 
 ### Reference-scene mode — high-fidelity semantic redraw
 
-When the user supplies a clean flat scientific schematic and visual similarity matters more than automatic tracing, use `scripts/render_reference_scene.py`. Rebuild the reference semantically with native editable PowerPoint objects instead of raster tracing.
+When the user supplies a clean flat scientific schematic and visual similarity matters more than blind tracing, use reference-scene mode.
 
-Reference-scene mode adds publication-style primitives that are common in experimental schematics: `uv_lamp`, `fan`, `petri_dish`, `material_block`, `dimension_arrow`, and `control_panel`. Use exact reference proportions, small line widths, matching typography, and restrained flat fills. Theme shadows/styles are stripped so the output remains closer to the source artwork.
+First run the local analyzer:
+
+`python scripts/analyze_reference.py --input-image <image> --analysis <analysis.json> --scene-draft <draft.json> --debug-overlay <overlay.png>`
+
+Use the analyzer output to seed layout instead of estimating everything from scratch. It provides source aspect ratio, background, dominant palette, frame candidates, connected-component bounding boxes, primitive guesses, rotation estimates, and text-like regions. Treat primitive labels as hints rather than ground truth.
+
+Then refine the draft semantically and render with:
+
+`python scripts/render_reference_scene.py --scene <scene.json> --output <output.pptx>`
+
+Reference-scene mode adds publication-style primitives common in experimental schematics: `uv_lamp`, `fan`, `petri_dish`, `material_block`, `dimension_arrow`, and `control_panel`. Match source-relative coordinates before beautifying. Theme shadows/styles are stripped so output stays close to the reference artwork.
+
+The analyzer deliberately does not invent OCR text. When wording is visible to the model or supplied by the user, replace text-like regions with native editable text boxes. Do not guess unreadable labels.
 
 ### Reconstruction mode — approximate local rebuild
 
@@ -34,12 +46,13 @@ If known text is present in the source figure, prefer supplying a text manifest 
 ## Scientific drawing workflow
 
 1. Identify the scientific story: input/material -> treatment/process -> structure/mechanism -> outcome.
-2. Identify semantic objects such as substrate, coating, reservoir, particles, cells, vessels, arrows, labels, and callouts.
-3. For reference redraws, match the source aspect ratio and place objects by source-relative coordinates before beautifying.
-4. Use the smallest set of native editable primitives that communicates the science accurately.
-5. Keep repeated particles/cells as independent editable objects where practical.
-6. Use concise labels and consistent typography.
-7. Render the scene and reopen the PPTX to verify integrity.
+2. For a reference redraw, run the local analyzer before manually estimating geometry.
+3. Identify semantic objects such as substrate, coating, reservoir, particles, cells, vessels, arrows, labels, and callouts.
+4. Match the source aspect ratio and source-relative coordinates before polishing style.
+5. Use the smallest set of native editable primitives that communicates the science accurately.
+6. Keep repeated particles/cells as independent editable objects where practical.
+7. Use concise labels and consistent typography.
+8. Render the scene and reopen the PPTX to verify integrity.
 
 ## Drawing rules
 
@@ -59,7 +72,7 @@ Codex Sci-PPT does not require a Xiaomiao API key, paid vectorization credits, o
 
 The reconstruction architecture should stay close to the public MIT-licensed Cell-PPT pipeline where practical: vector master -> live text -> geometry cache -> exact duplicate-path filtering -> native editable PowerPoint objects. The Xiaomiao vectorization stage is replaced by local processing rather than bypassed.
 
-Reference-scene mode is an additive extension. It must not replace or distort the Cell-PPT-compatible reconstruction pipeline.
+Reference-scene analysis/rendering is an additive extension. It must not replace or distort the Cell-PPT-compatible reconstruction pipeline.
 
 Do not introduce SVG features rejected by the shared geometry-cache contract merely for appearance. In particular, native SVG gradients are not part of the supported cache subset and should be expanded/approximated with ordinary solid geometry instead.
 
@@ -69,7 +82,11 @@ Scene mode:
 
 `python scripts/render_scene.py --scene <scene.json> --output <output.pptx>`
 
-Reference-scene mode:
+Reference analyzer:
+
+`python scripts/analyze_reference.py --input-image <image> --analysis <analysis.json> --scene-draft <draft.json> --debug-overlay <overlay.png>`
+
+Reference-scene renderer:
 
 `python scripts/render_reference_scene.py --scene <scene.json> --output <output.pptx>`
 
@@ -89,6 +106,10 @@ Reference-scene regression:
 
 `python scripts/reference_scene_selftest.py`
 
+Reference-analyzer regression:
+
+`python scripts/test_reference_analyzer.py`
+
 ## Completion check
 
-Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene/reference-scene mode, verify expected text boxes are present. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
+Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene/reference-scene mode, verify expected text boxes are present. For reference analysis, inspect the debug overlay and treat low-confidence primitive guesses as hints only. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
