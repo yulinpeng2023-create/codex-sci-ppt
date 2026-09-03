@@ -19,9 +19,23 @@ Scene mode is usually cleaner for a brand-new publication schematic. Reconstruct
 
 ## What is aligned with Cell-PPT
 
-The downstream reconstruction core now follows the same important contracts: vector-only master SVG, live-text merge, schema-v3 geometry cache, SVG transforms and style inheritance, cubic Bézier geometry, literal source order, ordinary 20–50 atom batches, exact duplicate-path filtering, and editable OOXML custom geometry. See `UPSTREAM_PARITY.md` and `THIRD_PARTY_NOTICES.md`.
+The downstream reconstruction core follows the same important contracts: vector-only master SVG, live-text merge, schema-v3 geometry cache, SVG transforms and style inheritance, cubic Bézier geometry, literal source order, ordinary 20–50 atom batches, exact duplicate-path filtering, and editable OOXML custom geometry. See `UPSTREAM_PARITY.md` and `THIRD_PARTY_NOTICES.md`.
 
 The main remaining parity gap is Windows live PowerPoint COM drawing; v0.1.x currently routes reconstruction through saved editable OOXML on all platforms.
+
+## Local vectorizer v2
+
+The no-API vectorizer is still intentionally separate from the Cell-PPT downstream core. Version 0.1.2 improves the local raster-to-SVG stage with:
+
+- LAB color clustering with deterministic sampling for large images;
+- mild edge-preserving bilateral preprocessing for diagram-style artwork;
+- merging of near-duplicate palette clusters caused by anti-aliasing;
+- proper transparent-pixel exclusion for PNG artwork with alpha;
+- native SVG rectangle and ellipse recovery where a component is confidently recognized;
+- hole-aware vector paths for compound regions;
+- deterministic output and quality diagnostics (`palette_psnr_db`, `palette_mae`, palette size, and primitive counts).
+
+These diagnostics are intended for engineering checks, not as a claim of publication-level visual fidelity. The reported PSNR describes palette reconstruction before final PowerPoint rendering.
 
 ## Install
 
@@ -81,6 +95,17 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
   --output-root outputs
 ```
 
+Optional reconstruction tuning:
+
+```bash
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
+  --input-image figure.png \
+  --output output.pptx \
+  --colors 12 \
+  --preprocess bilateral \
+  --palette-merge-distance 6
+```
+
 If a text manifest includes optional `bbox` fields, the corresponding raster text regions are locally inpainted before vectorization and then restored as live editable text.
 
 ## Diagnostics and self-test
@@ -90,11 +115,11 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/doctor.py
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/selftest.py
 ```
 
-The self-test exercises SVG validation, transformed/cubic geometry caching, duplicate-path removal, editable OOXML reopening, scene rendering, local raster vectorization, raster-text cleanup, live-text restoration, and job allocation.
+The self-test exercises SVG validation, transformed/cubic geometry caching, duplicate-path removal, editable OOXML reopening, scene rendering, deterministic local raster vectorization, rectangle/ellipse recovery, transparent backgrounds, raster-text cleanup, live-text restoration, and job allocation.
 
 ## Limitations
 
-The local vectorizer is deterministic and has no API cost, but its fidelity ceiling is still lower than a strong dedicated vectorization model/service. Flat-color scientific diagrams, flowcharts, cartoons, and mechanism figures work best. Complex gradients, textured microscopy panels, photographs, heavy transparency, shadows, and anti-aliased decorative artwork may require cleanup or semantic redraw.
+The local vectorizer is deterministic and has no API cost, but its fidelity ceiling is still lower than a strong dedicated vectorization model/service. Flat-color scientific diagrams, flowcharts, cartoons, and mechanism figures work best. Complex gradients, textured microscopy panels, photographs, heavy transparency, shadows, and decorative anti-aliased artwork may require cleanup or semantic redraw.
 
 ## License
 
