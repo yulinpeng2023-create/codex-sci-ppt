@@ -1,6 +1,6 @@
 {
   "name": "codex-sci-ppt",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Create and rebuild scientific figures as editable PowerPoint graphics.",
   "author": {
     "name": "yulinpeng2023-create"
@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Codex Sci-PPT",
     "shortDescription": "Editable scientific figures in PowerPoint.",
-    "longDescription": "Codex Sci-PPT creates scientific schematics from structured scene descriptions and locally reconstructs suitable raster diagrams into editable PowerPoint objects without a third-party credit system.",
+    "longDescription": "Codex Sci-PPT creates scientific schematics from structured scene descriptions, can semantically redraw clean reference diagrams with high-fidelity editable primitives, and locally reconstructs suitable raster diagrams without a third-party credit system.",
     "developerName": "yulinpeng2023-create",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
