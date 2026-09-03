@@ -50,6 +50,7 @@ def main():
     parser.add_argument("--preprocess", choices=("none", "bilateral"), default="bilateral")
     parser.add_argument("--palette-merge-distance", type=float, default=6.0)
     parser.add_argument("--sample-limit", type=int, default=250000)
+    parser.add_argument("--no-line-recovery", action="store_true")
     parser.add_argument("--text-padding", type=int, default=3)
     args = parser.parse_args()
 
@@ -92,7 +93,7 @@ def main():
             text_cleanup = json.loads(cleanup_output.splitlines()[-1])
         source_for_vectorization = cleaned_image
 
-    vector_output = run(
+    vector_command = [
         scripts / "vectorize_local.py",
         "--input-image", source_for_vectorization,
         "--output-svg", raw_svg,
@@ -103,7 +104,10 @@ def main():
         "--preprocess", args.preprocess,
         "--palette-merge-distance", args.palette_merge_distance,
         "--sample-limit", args.sample_limit,
-    )
+    ]
+    if args.no_line_recovery:
+        vector_command.append("--no-line-recovery")
+    vector_output = run(*vector_command)
     vector_summary = json.loads(vector_output.splitlines()[-1]) if vector_output else {}
 
     if args.text_manifest:
@@ -147,6 +151,9 @@ def main():
         "palette_colors": int(vector_summary.get("palette_colors", 0)),
         "palette_psnr_db": float(vector_summary.get("palette_psnr_db", 0.0)),
         "palette_mae": float(vector_summary.get("palette_mae", 0.0)),
+        "geometry_pixel_accuracy": float(vector_summary.get("geometry_pixel_accuracy", 0.0)),
+        "geometry_foreground_accuracy": float(vector_summary.get("geometry_foreground_accuracy", 0.0)),
+        "geometry_foreground_iou": float(vector_summary.get("geometry_foreground_iou", 0.0)),
         "primitives": vector_summary.get("primitives", {}),
     }, ensure_ascii=False, separators=(",", ":")))
 
