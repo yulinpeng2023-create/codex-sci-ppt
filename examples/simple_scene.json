@@ -1,0 +1,15 @@
+{
+  "slide": {"width": 13.333, "height": 7.5},
+  "background": "#FFFFFF",
+  "objects": [
+    {"type": "text", "x": 0.7, "y": 0.35, "w": 12, "h": 0.5, "text": "Sci-PPT editable scientific workflow", "font_size": 24, "bold": true, "align": "center"},
+    {"type": "round_rect", "x": 1.0, "y": 2.2, "w": 2.5, "h": 1.4, "fill": "#E8F1F8", "line": "#3F4F5F", "line_width": 1.5},
+    {"type": "text", "x": 1.2, "y": 2.62, "w": 2.1, "h": 0.5, "text": "Raw material", "font_size": 18, "align": "center"},
+    {"type": "arrow", "x1": 3.7, "y1": 2.9, "x2": 5.0, "y2": 2.9, "line": "#333333", "line_width": 2},
+    {"type": "ellipse", "x": 5.2, "y": 2.25, "w": 1.4, "h": 1.4, "fill": "#F6D9A7", "line": "#3F4F5F", "line_width": 1.5},
+    {"type": "text", "x": 4.8, "y": 3.85, "w": 2.2, "h": 0.5, "text": "Treatment", "font_size": 18, "align": "center"},
+    {"type": "arrow", "x1": 6.9, "y1": 2.9, "x2": 8.2, "y2": 2.9, "line": "#333333", "line_width": 2},
+    {"type": "round_rect", "x": 8.4, "y": 2.2, "w": 3.0, "h": 1.4, "fill": "#DDEEDB", "line": "#3F4F5F", "line_width": 1.5},
+    {"type": "text", "x": 8.7, "y": 2.62, "w": 2.4, "h": 0.5, "text": "Editable result", "font_size": 18, "align": "center"}
+  ]
+}
