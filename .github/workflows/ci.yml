@@ -24,3 +24,5 @@ jobs:
         run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/doctor.py
       - name: End-to-end self-test
         run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/selftest.py
+      - name: Reference scene regression
+        run: python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/reference_scene_selftest.py
