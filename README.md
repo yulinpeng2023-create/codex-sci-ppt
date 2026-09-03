@@ -1,27 +1,27 @@
 # codex-sci-ppt
 
-**Codex Sci-PPT — Scientific figure drawing with editable PowerPoint graphics.**
+**Codex Sci-PPT — Scientific figure drawing and reconstruction with editable PowerPoint graphics.**
 
 `codex-sci-ppt` is a local-first Codex skill for creating, rebuilding, and exporting scientific figures as editable PowerPoint (`.pptx`) graphics.
 
-## Goals
+The reconstruction path intentionally stays close to the public MIT-licensed `yrui-cmd/cell-ppt` architecture. The main deliberate substitution is the paid/remote vectorization stage:
 
-- Create scientific schematics from a text description.
-- Rebuild raster scientific figures into editable vector-like PowerPoint objects.
-- Keep text editable as native PowerPoint text boxes.
-- Work without a third-party API key or credit/quota system.
-- Support Windows and macOS through ordinary `.pptx` generation.
+`text manifest -> local text-region cleanup -> local vectorization -> master SVG -> geometry cache -> exact duplicate removal -> editable native PowerPoint`
 
-## Current v0.1 scope
+No Xiaomiao API key, upload, credit, or quota is required.
 
-The first release focuses on a reliable local workflow:
+## Two workflows
 
-`image / scene specification -> local geometry extraction -> editable PowerPoint`
+1. **Reconstruction mode** — for uploaded raster scientific diagrams. The local pipeline creates a vector-only master SVG, parses it once into the same style of schema-v3 geometry cache used by Cell-PPT, keeps literal paint order, removes exact duplicate drawing paths only, and writes editable native PowerPoint custom geometry.
+2. **Scene mode** — for new scientific drawings from a description. Codex generates a structured scene specification and `render_scene.py` creates separate editable shapes, arrows, labels, particles, cells, membranes, vessels, droplets, and layered structures.
 
-Two workflows are provided:
+Scene mode is usually cleaner for a brand-new publication schematic. Reconstruction mode is the closer replacement for Cell-PPT's image-to-editable-PPT workflow.
 
-1. **Scene mode** — recommended for high-quality scientific drawings. Codex turns the user's description into a small JSON scene specification, and `render_scene.py` creates native PowerPoint shapes and text.
-2. **Trace mode** — converts a raster image into simplified editable polygon/freeform-like objects using local OpenCV contour extraction. It works best for diagrams with flat colors, clear boundaries, flowcharts, cartoons, and scientific schematics. It is not intended to perfectly reproduce photographs or complex gradients.
+## What is aligned with Cell-PPT
+
+The downstream reconstruction core now follows the same important contracts: vector-only master SVG, live-text merge, schema-v3 geometry cache, SVG transforms and style inheritance, cubic Bézier geometry, literal source order, ordinary 20–50 atom batches, exact duplicate-path filtering, and editable OOXML custom geometry. See `UPSTREAM_PARITY.md` and `THIRD_PARTY_NOTICES.md`.
+
+The main remaining parity gap is Windows live PowerPoint COM drawing; v0.1.x currently routes reconstruction through saved editable OOXML on all platforms.
 
 ## Install
 
@@ -33,13 +33,13 @@ cd codex-sci-ppt
 python -m pip install -r requirements.txt
 ```
 
-On Windows you may also run:
+Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-On macOS/Linux:
+macOS/Linux:
 
 ```bash
 bash setup.sh
@@ -47,13 +47,9 @@ bash setup.sh
 
 ## Codex usage
 
-After installing the skill, you can ask:
-
 ```text
 使用 $codex-sci-ppt，根据我的实验方法绘制一张科研示意图，输出可编辑 PPTX。
 ```
-
-or:
 
 ```text
 使用 $codex-sci-ppt，把我上传的科研图片重绘成可编辑 PowerPoint 图形。
@@ -61,7 +57,7 @@ or:
 
 ## Command-line examples
 
-Create an editable PPTX from a scene JSON file:
+Create a new editable scientific scene:
 
 ```bash
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/render_scene.py \
@@ -69,7 +65,7 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/render_scene.py \
   --output output.pptx
 ```
 
-Trace a raster image locally:
+Reconstruct an image directly to a PPTX:
 
 ```bash
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
@@ -77,19 +73,28 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
   --output output.pptx
 ```
 
-Run diagnostics:
+Cell-PPT-like job-folder output is also supported:
+
+```bash
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/run_from_image.py \
+  --input-image figure.png \
+  --output-root outputs
+```
+
+If a text manifest includes optional `bbox` fields, the corresponding raster text regions are locally inpainted before vectorization and then restored as live editable text.
+
+## Diagnostics and self-test
 
 ```bash
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/doctor.py
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/selftest.py
 ```
 
-## Editing model
-
-Objects created by Codex Sci-PPT are intended to remain editable in PowerPoint. Text is stored as text boxes; rectangles, ellipses, arrows, lines, and polygons are created as separate PowerPoint shapes whenever possible.
+The self-test exercises SVG validation, transformed/cubic geometry caching, duplicate-path removal, editable OOXML reopening, scene rendering, local raster vectorization, raster-text cleanup, live-text restoration, and job allocation.
 
 ## Limitations
 
-Raster-to-vector reconstruction is inherently approximate. Complex gradients, textures, microscopy images, photographs, shadows, and overlapping semi-transparent objects may require manual cleanup. For publication-quality scientific schematics, **scene mode is preferred over blind tracing**.
+The local vectorizer is deterministic and has no API cost, but its fidelity ceiling is still lower than a strong dedicated vectorization model/service. Flat-color scientific diagrams, flowcharts, cartoons, and mechanism figures work best. Complex gradients, textured microscopy panels, photographs, heavy transparency, shadows, and anti-aliased decorative artwork may require cleanup or semantic redraw.
 
 ## License
 
@@ -97,4 +102,4 @@ MIT License.
 
 ## Acknowledgements
 
-Codex Sci-PPT is a local-first implementation. Its image-to-vector-to-editable-PowerPoint pipeline is designed to stay compatible in spirit with the public MIT-licensed architecture of `yrui-cmd/cell-ppt`, while replacing the third-party Xiaomiao API vectorization stage with local processing. See `THIRD_PARTY_NOTICES.md` for attribution.
+Codex Sci-PPT is a local-first implementation built around the public MIT-licensed Cell-PPT architecture. Substantial adapted portions and their license notice are documented in `THIRD_PARTY_NOTICES.md`.
