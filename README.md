@@ -16,6 +16,18 @@ No Xiaomiao API key, upload, credit, or quota is required.
 2. **Reference-scene mode** — for clean flat scientific schematics where visual similarity matters. A local reference analyzer estimates layout/style from the image, then semantic PowerPoint primitives are used for a cleaner editable redraw.
 3. **Scene mode** — for brand-new figures from a description. Structured scene JSON creates separate editable scientific shapes, arrows, labels, particles, cells, membranes, vessels, droplets, and layered structures.
 
+## Reusable scientific templates
+
+Version 0.1.6 adds the first reusable material template: a **bamboo cross-section field** based on a user-supplied PowerPoint schematic. It generates a warm golden parenchyma matrix and repeated stylized vascular bundles. The matrix texture is generated locally; vascular bundles are separate native PowerPoint shapes and remain editable.
+
+```bash
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/render_bamboo_template.py \
+  --config plugins/codex-sci-ppt/skills/codex-sci-ppt/templates/bamboo_cross_section.json \
+  --output bamboo-cross-section.pptx
+```
+
+Use it as a starting layer for bamboo anatomy panels, coating cross sections, penetration/release figures, zoom callouts, or other bamboo-material schematics. It is a schematic template, not a source of quantitative anatomical data.
+
 ## Local vectorizer v3
 
 The no-API vectorizer uses a deterministic LAB/contour pipeline with PowerPoint-friendly geometry recovery:
@@ -144,9 +156,10 @@ python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/doctor.py
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/selftest.py
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/reference_scene_selftest.py
 python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/test_reference_analyzer.py
+python plugins/codex-sci-ppt/skills/codex-sci-ppt/scripts/bamboo_template_selftest.py
 ```
 
-CI runs the core pipeline, reference-scene renderer, and reference-analyzer regressions on Python 3.11 and 3.12.
+CI runs the core pipeline, reference-scene renderer, reference analyzer, and bamboo-template regressions on Python 3.11 and 3.12.
 
 ## Limitations
 

@@ -37,27 +37,42 @@ The analyzer deliberately does not invent OCR text. When wording is visible to t
 
 ### Reconstruction mode — approximate local rebuild
 
-Use reconstruction mode when the user explicitly wants an uploaded raster diagram rebuilt and semantic redraw is not practical. Run `scripts/run_from_image.py`. The local vectorizer can recover ordinary paths plus editable rectangles, rotated rectangles, ellipses, and conservative thin stroked lines before the Cell-PPT-compatible SVG/cache/OOXML stages.
+Use reconstruction mode when the user explicitly wants an uploaded raster diagram rebuilt and semantic redraw is not practical. Run `scripts/run_from_image.py`. The local vectorizer can recover ordinary paths plus editable rectangles, rotated rectangles, ellipses, and conservative thin stroked lines before the SVG/cache/OOXML rendering stages.
 
 Reconstruction works best for flat-color diagrams, cartoons, flowcharts, icons, and simple scientific schematics. For photographs, microscopy images, dense textures, complex gradients, shadows, or transparency-heavy artwork, state that local reconstruction is approximate and prefer semantic scene reconstruction when possible.
 
 If known text is present in the source figure, prefer supplying a text manifest with bounding boxes so raster text can be removed before tracing and restored as native editable text. Thin-line recovery is enabled by default; use `--no-line-recovery` only when a long narrow filled bar is being misclassified as a connector/stroke.
 
+## Reusable bamboo cross-section template
+
+When a figure needs a bamboo transverse-section field, bamboo wall matrix, vascular bundles, coating-on-bamboo cross section, penetration/release schematic, or bamboo anatomy zoom panel, read `references/bamboo-template.md` and start from:
+
+`templates/bamboo_cross_section.json`
+
+Render it with:
+
+`python scripts/render_bamboo_template.py --config templates/bamboo_cross_section.json --output <output.pptx>`
+
+The template is based on a user-supplied bamboo cross-section PowerPoint visual. It creates a deterministic warm golden matrix texture and stylized bamboo vascular bundles. The matrix is a raster texture layer; every vascular bundle is built from separate native editable PowerPoint shapes so it can be moved, recolored, resized, deleted, or reused in later figures.
+
+Treat the template as schematic anatomy only. Do not infer quantitative vascular-bundle density, size, dimensions, or scale from it unless the user supplies measured data.
+
 ## Scientific drawing workflow
 
 1. Identify the scientific story: input/material -> treatment/process -> structure/mechanism -> outcome.
 2. For a reference redraw, run the local analyzer before manually estimating geometry.
-3. Identify semantic objects such as substrate, coating, reservoir, particles, cells, vessels, arrows, labels, and callouts.
-4. Match the source aspect ratio and source-relative coordinates before polishing style.
-5. Use the smallest set of native editable primitives that communicates the science accurately.
-6. Keep repeated particles/cells as independent editable objects where practical.
-7. Use concise labels and consistent typography.
-8. Render the scene and reopen the PPTX to verify integrity.
+3. If the figure contains a bamboo cross section, check the reusable bamboo template before drawing it from scratch.
+4. Identify semantic objects such as substrate, coating, reservoir, particles, cells, vessels, arrows, labels, and callouts.
+5. Match the source aspect ratio and source-relative coordinates before polishing style.
+6. Use the smallest set of native editable primitives that communicates the science accurately.
+7. Keep repeated particles/cells/vascular bundles as independent editable objects where practical.
+8. Use concise labels and consistent typography.
+9. Render the scene and reopen the PPTX to verify integrity.
 
 ## Drawing rules
 
 - Keep text as native PowerPoint text boxes whenever wording is known.
-- Keep meaningful objects separate: cells, particles, arrows, substrates, coatings, labels, vessels, membranes, fibers, and legends should not be flattened together.
+- Keep meaningful objects separate: cells, particles, arrows, substrates, coatings, labels, vessels, membranes, fibers, vascular bundles, and legends should not be flattened together.
 - Prefer simple PowerPoint primitives when possible.
 - Preserve logical layer order from background to foreground.
 - Use restrained scientific styling, consistent line widths, typography, spacing, and arrow conventions.
@@ -70,17 +85,19 @@ If known text is present in the source figure, prefer supplying a text manifest 
 
 Codex Sci-PPT does not require a Xiaomiao API key, paid vectorization credits, or an upload to a third-party vectorization service. Do not request such credentials.
 
-The reconstruction architecture should stay close to the public MIT-licensed Cell-PPT pipeline where practical: vector master -> live text -> geometry cache -> exact duplicate-path filtering -> native editable PowerPoint objects. The Xiaomiao vectorization stage is replaced by local processing rather than bypassed.
+Keep reconstruction stages modular: vector master -> live text -> geometry cache -> exact duplicate-path filtering -> native editable PowerPoint objects. Reference analysis, semantic redraws, and reusable scientific templates are additive layers and should not break the reconstruction path.
 
-Reference-scene analysis/rendering is an additive extension. It must not replace or distort the Cell-PPT-compatible reconstruction pipeline.
-
-Do not introduce SVG features rejected by the shared geometry-cache contract merely for appearance. In particular, native SVG gradients are not part of the supported cache subset and should be expanded/approximated with ordinary solid geometry instead.
+Do not introduce SVG features rejected by the current geometry-cache contract merely for appearance. In particular, native SVG gradients are not part of the supported cache subset and should be expanded or approximated with ordinary solid geometry instead.
 
 ## Commands
 
 Scene mode:
 
 `python scripts/render_scene.py --scene <scene.json> --output <output.pptx>`
+
+Bamboo cross-section template:
+
+`python scripts/render_bamboo_template.py --config templates/bamboo_cross_section.json --output <output.pptx>`
 
 Reference analyzer:
 
@@ -110,6 +127,10 @@ Reference-analyzer regression:
 
 `python scripts/test_reference_analyzer.py`
 
+Bamboo-template regression:
+
+`python scripts/bamboo_template_selftest.py`
+
 ## Completion check
 
-Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene/reference-scene mode, verify expected text boxes are present. For reference analysis, inspect the debug overlay and treat low-confidence primitive guesses as hints only. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
+Before reporting success, confirm that the output PPTX exists, reopens with `python-pptx`, has at least one slide, and contains editable shapes. For scene/reference-scene mode, verify expected text boxes are present. For bamboo-template output, verify the vascular bundles remain separate editable shapes. For reference analysis, inspect the debug overlay and treat low-confidence primitive guesses as hints only. For reconstruction mode, inspect the reported primitive counts and geometry diagnostics when useful, and report that reconstruction is approximate rather than claiming pixel-perfect fidelity.
